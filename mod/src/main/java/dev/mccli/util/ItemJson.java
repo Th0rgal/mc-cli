@@ -2,14 +2,13 @@ package dev.mccli.util;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
+import net.minecraft.component.DataComponentTypes;
+import net.minecraft.component.type.CustomModelDataComponent;
+import net.minecraft.component.type.ItemEnchantmentsComponent;
 import net.minecraft.enchantment.Enchantment;
-import net.minecraft.enchantment.EnchantmentHelper;
 import net.minecraft.item.ItemStack;
-import net.minecraft.nbt.NbtCompound;
-import net.minecraft.nbt.NbtElement;
 import net.minecraft.registry.Registries;
-
-import java.util.Map;
+import net.minecraft.registry.entry.RegistryEntry;
 
 /**
  * Utility for serializing ItemStack data to JSON.
@@ -37,25 +36,28 @@ public final class ItemJson {
             item.addProperty("durability", stack.getMaxDamage() - stack.getDamage());
         }
 
-        NbtCompound nbt = stack.getNbt();
-        if (nbt != null && nbt.contains("CustomModelData", NbtElement.NUMBER_TYPE)) {
-            item.addProperty("custom_model_data", nbt.getInt("CustomModelData"));
+        // Custom model data (1.21+ uses components)
+        CustomModelDataComponent customModelData = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
+        if (customModelData != null) {
+            item.addProperty("custom_model_data", customModelData.value());
         }
 
-        if (includeNbt && nbt != null && !nbt.isEmpty()) {
-            item.addProperty("nbt", nbt.toString());
+        // Include full component string if requested
+        if (includeNbt) {
+            item.addProperty("components", stack.getComponents().toString());
         }
 
-        Map<Enchantment, Integer> enchants = EnchantmentHelper.get(stack);
-        if (!enchants.isEmpty()) {
-            JsonArray enchantments = new JsonArray();
-            for (Map.Entry<Enchantment, Integer> entry : enchants.entrySet()) {
+        // Enchantments (1.21+ uses ItemEnchantmentsComponent)
+        ItemEnchantmentsComponent enchantments = stack.get(DataComponentTypes.ENCHANTMENTS);
+        if (enchantments != null && !enchantments.isEmpty()) {
+            JsonArray enchantmentsArray = new JsonArray();
+            for (RegistryEntry<Enchantment> entry : enchantments.getEnchantments()) {
                 JsonObject enchant = new JsonObject();
-                enchant.addProperty("id", Registries.ENCHANTMENT.getId(entry.getKey()).toString());
-                enchant.addProperty("level", entry.getValue());
-                enchantments.add(enchant);
+                enchant.addProperty("id", entry.getIdAsString());
+                enchant.addProperty("level", enchantments.getLevel(entry));
+                enchantmentsArray.add(enchant);
             }
-            item.add("enchantments", enchantments);
+            item.add("enchantments", enchantmentsArray);
         }
 
         return item;

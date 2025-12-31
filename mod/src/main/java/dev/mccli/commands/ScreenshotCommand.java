@@ -13,6 +13,7 @@ import net.minecraft.client.world.ClientWorld;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
+import java.io.IOException;
 import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
@@ -140,7 +141,11 @@ public class ScreenshotCommand implements Command {
                     parentDir.mkdirs();
                 }
 
-                image.writeTo(file);
+                try {
+                    image.writeTo(file);
+                } catch (IOException e) {
+                    throw new RuntimeException("Failed to write screenshot to " + path, e);
+                }
 
                 JsonObject result = new JsonObject();
                 result.addProperty("path", file.getAbsolutePath());

@@ -14,7 +14,7 @@ Commands:
     analyze         Analyze screenshot metrics
     compare         Compare two screenshots
     teleport        Move player to coordinates
-    time            Get or set world time
+    time            Get or set world time (time get / time set <value>)
     perf            Get performance metrics
     logs            Get game logs
     execute         Run a Minecraft command
@@ -24,6 +24,8 @@ Commands:
     entity          Probe targeted entity
     macro           Run a JSON macro script
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -235,15 +237,21 @@ def cmd_time(args):
     """Get or set time."""
     try:
         with Client(args.host, args.port) as mc:
-            if args.value is not None:
+            # Default to "get" if no subcommand specified
+            action = getattr(args, "time_action", None) or "get"
+
+            if action == "set":
                 mc.time_set(args.value)
                 print(f"Time set to: {args.value}")
-            else:
-                time = mc.time_get()
+            else:  # get
+                time_val = mc.time_get()
                 if args.json:
-                    output({"time": time}, True)
+                    output({"time": time_val}, True)
                 else:
-                    print(f"World time: {time}")
+                    # Convert ticks to human-readable
+                    hour = (time_val // 1000 + 6) % 24
+                    minute = (time_val % 1000) * 60 // 1000
+                    print(f"World time: {time_val} ({hour:02d}:{minute:02d})")
         return 0
     except Exception as e:
         output({"error": str(e)}, args.json)
@@ -622,7 +630,10 @@ def main():
 
     # time
     time_p = sub.add_parser("time", help="Get or set world time")
-    time_p.add_argument("value", nargs="?", help="Time value (0-24000 or name)")
+    time_sub = time_p.add_subparsers(dest="time_action")
+    time_sub.add_parser("get", help="Get current world time")
+    time_set_p = time_sub.add_parser("set", help="Set world time")
+    time_set_p.add_argument("value", help="Time value (0-24000 or: day, noon, night, midnight, sunrise, sunset)")
 
     # perf
     sub.add_parser("perf", help="Get performance metrics")

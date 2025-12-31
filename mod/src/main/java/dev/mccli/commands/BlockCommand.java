@@ -108,7 +108,7 @@ public class BlockCommand implements Command {
                 JsonObject be = new JsonObject();
                 be.addProperty("id", Registries.BLOCK_ENTITY_TYPE.getId(blockEntity.getType()).toString());
                 if (includeNbt) {
-                    NbtCompound nbt = blockEntity.createNbtWithIdentifyingData();
+                    NbtCompound nbt = blockEntity.createNbtWithIdentifyingData(world.getRegistryManager());
                     be.addProperty("nbt", nbt.toString());
                 }
                 result.add("block_entity", be);

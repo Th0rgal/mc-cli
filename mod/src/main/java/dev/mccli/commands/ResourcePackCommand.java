@@ -75,7 +75,7 @@ public class ResourcePackCommand implements Command {
             pack.addProperty("name", profile.getDisplayName().getString());
             pack.addProperty("description", profile.getDescription().getString());
             pack.addProperty("enabled", manager.getEnabledIds().contains(profile.getId()));
-            pack.addProperty("required", profile.isAlwaysEnabled());
+            pack.addProperty("required", profile.isPinned());
             packs.add(pack);
         }
 
@@ -141,7 +141,7 @@ public class ResourcePackCommand implements Command {
             return result;
         }
 
-        if (profile.isAlwaysEnabled()) {
+        if (profile.isPinned()) {
             result.addProperty("success", false);
             result.addProperty("error", "Cannot disable required resource pack: " + name);
             return result;

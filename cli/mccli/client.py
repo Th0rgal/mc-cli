@@ -5,10 +5,12 @@ Connects to the MC-CLI mod running inside Minecraft and sends commands.
 All methods return structured data suitable for LLM consumption.
 """
 
+from __future__ import annotations
+
 import json
 import socket
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional, Any, Union, List
 
 
 @dataclass

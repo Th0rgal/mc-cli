@@ -53,12 +53,6 @@ public class PerfCommand implements Command {
                 }
             }
 
-            // GPU info (if available)
-            String gpuInfo = client.getGpuInfo();
-            if (gpuInfo != null) {
-                result.addProperty("gpu", gpuInfo);
-            }
-
             return result;
         });
     }
