@@ -1,0 +1,35 @@
+# Java/Gradle
+mod/.gradle/
+mod/build/
+mod/.idea/
+mod/*.iml
+mod/run/
+
+# Python
+cli/__pycache__/
+cli/*.egg-info/
+cli/dist/
+cli/build/
+cli/.eggs/
+*.pyc
+*.pyo
+.pytest_cache/
+.mypy_cache/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+
+# Test outputs
+captures/
+screenshots/
