@@ -4,6 +4,33 @@
 
 MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screenshots, and debug shaders programmatically. It provides structured JSON output optimized for machine consumption.
 
+## Installation
+
+### Recommended: Use Shard Launcher
+
+The easiest way to use MC-CLI is with [Shard](https://shard.thomas.md), a Minecraft launcher that comes with the mod pre-installed and configured.
+
+### Manual Installation
+
+#### Fabric Mod
+
+1. Build the mod: `cd mod && ./gradlew build`
+2. Copy `build/libs/mccli-*.jar` to your Minecraft mods folder
+3. Requires: Minecraft 1.21.1, Fabric Loader 0.16.9+
+4. Iris is optional but required for shader features
+
+#### Python CLI
+
+```bash
+# Install from source
+pip install -e cli/
+
+# Or run directly without installing
+python -m mccli status
+```
+
+After installation, the `mccli` command will be available in your terminal.
+
 ## Architecture
 
 ```
@@ -19,56 +46,52 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
 └─────────────────┘                    └─────────────────┘
 ```
 
-## Core Features (The 20% That Gets 90% of Results)
+## Features
 
-### 1. Game Control
+### Game Control
 - **status** - Get game state (position, time, dimension, shader info)
 - **teleport** - Move player to coordinates
 - **camera** - Set view direction
-- **time** - Control world time
+- **time** - Control world time (supports named times: sunrise, noon, sunset, midnight)
 - **server** - Connect/disconnect/status for multiplayer servers
+- **execute** - Run arbitrary Minecraft commands
 
-### 2. Shader Development
-- **shader.list** - List available shader packs
-- **shader.get** - Get current shader info
-- **shader.set** - Switch shader packs
-- **shader.reload** - Reload current shader
-- **shader.errors** - Get shader compilation errors ⭐ NEW
+### Shader Development
+- **shader list** - List available shader packs
+- **shader get** - Get current shader info
+- **shader set** - Switch shader packs
+- **shader reload** - Reload current shader (returns compilation errors)
+- **shader errors** - Get shader compilation errors
+- **shader disable** - Disable shaders
 
-### 3. Visual Capture
-- **screenshot** - Capture screen with clean mode (no HUD)
+### Visual Capture & Analysis
+- **capture** - Take screenshots with optional clean mode (no HUD)
 - **analyze** - Extract quantitative metrics from screenshots
+- **compare** - Compare two screenshots for differences
 
-### 4. Debugging
-- **logs** - Stream game/shader logs ⭐ NEW
-- **perf** - Get FPS and frame timing ⭐ NEW
+### Debugging & Performance
+- **logs** - Stream game/shader logs with filtering and follow mode
+- **perf** - Get FPS, frame timing, and memory metrics
 
-### 5. Packs + Chat
-- **resourcepack** - List/enable/disable/reload resource packs ⭐ NEW
-- **chat** - Send messages and read chat history ⭐ NEW
+### Resource Packs
+- **resourcepack list** - List all available resource packs
+- **resourcepack enabled** - List currently enabled packs
+- **resourcepack enable/disable** - Toggle resource packs
+- **resourcepack reload** - Reload resource packs
 
-### 6. Inspection + Probes
-- **item** - Inspect held items or slots ⭐ NEW
-- **inventory** - List inventory contents ⭐ NEW
-- **block** - Probe targeted or specific blocks ⭐ NEW
-- **entity** - Probe targeted entities ⭐ NEW
+### Chat
+- **chat send** - Send chat messages or commands
+- **chat history** - Get recent chat messages with filtering
+- **chat clear** - Clear chat buffer
 
-### 7. Automation
-- **macro** - Run JSON macro scripts ⭐ NEW
+### Inspection & Probes
+- **item** - Inspect held items or specific inventory slots
+- **inventory** - List inventory contents by section
+- **block** - Probe targeted or specific blocks (with NBT)
+- **entity** - Probe targeted entities (with NBT)
 
-## Installation
-
-### Fabric Mod
-1. Build the mod: `cd mod && ./gradlew build`
-2. Copy `build/libs/mccli-*.jar` to your Minecraft mods folder
-3. Requires: Minecraft 1.21.1, Fabric Loader 0.16.9+. Iris is optional for shader features.
-
-### Python CLI
-```bash
-pip install -e cli/
-# or just use directly:
-python -m mccli status
-```
+### Automation
+- **macro** - Run JSON macro scripts for automated workflows
 
 ## Quick Start
 
@@ -197,19 +220,9 @@ mc-cli/
 
 ## Design Philosophy
 
-1. **Focus on the 20%**: Only implement features that provide 90% of the value
-2. **LLM-First**: Structured output, quantitative metrics, no ambiguity
-3. **Reliability**: Robust error handling, clear error messages
-4. **Simplicity**: Easy to understand, easy to extend
-
-## What's NOT Included (And Why)
-
-| Feature | Why Excluded |
-|---------|--------------|
-| Key press simulation | Rarely needed, use `execute` for commands |
-| Screen management | Handled by `screenshot --clean` |
-| World connect/disconnect | Manual operation, not for automation |
-| Complex scene system | Over-engineered for most use cases |
+1. **LLM-First**: Structured JSON output, quantitative metrics, no ambiguity
+2. **Reliability**: Robust error handling, clear error messages
+3. **Simplicity**: Easy to understand, easy to extend
 
 ## License
 
