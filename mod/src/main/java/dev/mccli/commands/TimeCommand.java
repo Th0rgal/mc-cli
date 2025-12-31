@@ -55,14 +55,22 @@ public class TimeCommand implements Command {
 
             int time;
             if (params.get("value").isJsonPrimitive() && params.get("value").getAsJsonPrimitive().isString()) {
-                String name = params.get("value").getAsString().toLowerCase();
-                if (!NAMED_TIMES.containsKey(name)) {
-                    CompletableFuture<JsonObject> future = new CompletableFuture<>();
-                    future.completeExceptionally(new IllegalArgumentException(
-                        "Unknown time name: " + name + ". Valid: " + String.join(", ", NAMED_TIMES.keySet())));
-                    return future;
+                String valueStr = params.get("value").getAsString();
+
+                // First, try to parse as a number (handles "6000" from CLI)
+                try {
+                    time = Integer.parseInt(valueStr);
+                } catch (NumberFormatException e) {
+                    // Not a number, try as named time
+                    String name = valueStr.toLowerCase();
+                    if (!NAMED_TIMES.containsKey(name)) {
+                        CompletableFuture<JsonObject> future = new CompletableFuture<>();
+                        future.completeExceptionally(new IllegalArgumentException(
+                            "Unknown time name: " + name + ". Valid: " + String.join(", ", NAMED_TIMES.keySet())));
+                        return future;
+                    }
+                    time = NAMED_TIMES.get(name);
                 }
-                time = NAMED_TIMES.get(name);
             } else {
                 time = params.get("value").getAsInt();
             }
