@@ -354,3 +354,132 @@ class Client:
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data.get("logs", [])
+
+    # =========================================================================
+    # Resource Pack Commands
+    # =========================================================================
+
+    def resourcepack_list(self) -> list[dict]:
+        """
+        List all available resource packs.
+
+        Returns:
+            List of {id: str, name: str, description: str, enabled: bool, required: bool}
+        """
+        result = self._send("resourcepack", {"action": "list"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("packs", [])
+
+    def resourcepack_enabled(self) -> list[dict]:
+        """
+        List currently enabled resource packs.
+
+        Returns:
+            List of {id: str, name: str, description: str}
+        """
+        result = self._send("resourcepack", {"action": "enabled"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("packs", [])
+
+    def resourcepack_enable(self, name: str) -> dict:
+        """
+        Enable a resource pack.
+
+        Args:
+            name: Resource pack ID or display name
+
+        Returns:
+            dict with {success: bool, id: str, name: str}
+        """
+        result = self._send("resourcepack", {"action": "enable", "name": name})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def resourcepack_disable(self, name: str) -> dict:
+        """
+        Disable a resource pack.
+
+        Args:
+            name: Resource pack ID or display name
+
+        Returns:
+            dict with {success: bool, id: str, name: str}
+        """
+        result = self._send("resourcepack", {"action": "disable", "name": name})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def resourcepack_reload(self) -> dict:
+        """
+        Reload all resource packs.
+
+        Returns:
+            dict with {success: bool, reloading: bool}
+        """
+        result = self._send("resourcepack", {"action": "reload"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    # =========================================================================
+    # Chat Commands
+    # =========================================================================
+
+    def chat_send(self, message: str) -> dict:
+        """
+        Send a chat message or command.
+
+        Args:
+            message: Message to send. If starts with /, sent as command.
+
+        Returns:
+            dict with {sent: bool, type: "chat" | "command", message/command: str}
+        """
+        result = self._send("chat", {"action": "send", "message": message})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def chat_history(
+        self,
+        limit: int = 50,
+        type: Optional[str] = None,
+        filter: Optional[str] = None
+    ) -> list[dict]:
+        """
+        Get recent chat messages.
+
+        Args:
+            limit: Maximum number of messages (default: 50)
+            type: Filter by type ("chat", "system", "game_info")
+            filter: Regex pattern to filter content
+
+        Returns:
+            List of {timestamp: str, type: str, sender: str?, content: str}
+        """
+        params = {"action": "history", "limit": limit}
+        if type:
+            params["type"] = type
+        if filter:
+            params["filter"] = filter
+
+        result = self._send("chat", params)
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("messages", [])
+
+    def chat_clear(self) -> int:
+        """
+        Clear chat history buffer.
+
+        Returns:
+            Number of messages cleared
+        """
+        result = self._send("chat", {"action": "clear"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("cleared", 0)

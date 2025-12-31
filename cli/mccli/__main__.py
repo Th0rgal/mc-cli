@@ -8,6 +8,8 @@ Usage:
 Commands:
     status          Check game connection and state
     shader          Shader management (list, get, set, reload, errors)
+    resourcepack    Resource pack management (list, enabled, enable, disable, reload)
+    chat            Chat messaging (send, history, clear)
     capture         Take a screenshot
     analyze         Analyze screenshot metrics
     compare         Compare two screenshots
@@ -284,6 +286,122 @@ def cmd_execute(args):
         return 1
 
 
+def cmd_resourcepack(args):
+    """Resource pack management."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "list":
+                packs = mc.resourcepack_list()
+                if args.json:
+                    output({"packs": packs, "count": len(packs)}, True)
+                else:
+                    print(f"Available resource packs ({len(packs)}):")
+                    for p in packs:
+                        status = "[enabled]" if p.get("enabled") else ""
+                        required = "(required)" if p.get("required") else ""
+                        print(f"  {p['id']} {status} {required}")
+                        if p.get("description"):
+                            print(f"    {p['description']}")
+
+            elif args.action == "enabled":
+                packs = mc.resourcepack_enabled()
+                if args.json:
+                    output({"packs": packs, "count": len(packs)}, True)
+                else:
+                    print(f"Enabled resource packs ({len(packs)}):")
+                    for p in packs:
+                        print(f"  {p['id']}")
+
+            elif args.action == "enable":
+                if not args.name:
+                    print("Error: --name required for 'enable' action")
+                    return 1
+                data = mc.resourcepack_enable(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        if data.get("already_enabled"):
+                            print(f"Resource pack already enabled: {args.name}")
+                        else:
+                            print(f"Resource pack enabled: {data.get('id')}")
+                    else:
+                        print(f"Failed to enable: {data.get('error')}")
+
+            elif args.action == "disable":
+                if not args.name:
+                    print("Error: --name required for 'disable' action")
+                    return 1
+                data = mc.resourcepack_disable(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        if data.get("already_disabled"):
+                            print(f"Resource pack already disabled: {args.name}")
+                        else:
+                            print(f"Resource pack disabled: {data.get('id')}")
+                    else:
+                        print(f"Failed to disable: {data.get('error')}")
+
+            elif args.action == "reload":
+                data = mc.resourcepack_reload()
+                if args.json:
+                    output(data, True)
+                else:
+                    print("Resource packs reloading...")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_chat(args):
+    """Chat messaging."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "send":
+                if not args.message:
+                    print("Error: --message required for 'send' action")
+                    return 1
+                data = mc.chat_send(args.message)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("type") == "command":
+                        print(f"Sent command: /{data.get('command')}")
+                    else:
+                        print(f"Sent message: {data.get('message')}")
+
+            elif args.action == "history":
+                messages = mc.chat_history(
+                    limit=args.limit,
+                    type=args.type,
+                    filter=args.filter
+                )
+                if args.json:
+                    output({"messages": messages, "count": len(messages)}, True)
+                else:
+                    print(f"Chat history ({len(messages)} messages):")
+                    for msg in messages:
+                        sender = msg.get("sender", "")
+                        prefix = f"<{sender}> " if sender else f"[{msg['type']}] "
+                        print(f"  {prefix}{msg['content']}")
+
+            elif args.action == "clear":
+                cleared = mc.chat_clear()
+                if args.json:
+                    output({"cleared": cleared}, True)
+                else:
+                    print(f"Cleared {cleared} messages from buffer")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="MC-CLI: Minecraft Command-Line Interface for LLM-Assisted Shader Development",
@@ -343,6 +461,19 @@ def main():
     exec_p = sub.add_parser("execute", help="Run a Minecraft command")
     exec_p.add_argument("cmd", metavar="command", help="Command to execute (without /)")
 
+    # resourcepack
+    rp_p = sub.add_parser("resourcepack", help="Resource pack management")
+    rp_p.add_argument("action", choices=["list", "enabled", "enable", "disable", "reload"])
+    rp_p.add_argument("--name", help="Resource pack name/ID (for 'enable' and 'disable')")
+
+    # chat
+    chat_p = sub.add_parser("chat", help="Chat messaging")
+    chat_p.add_argument("action", choices=["send", "history", "clear"])
+    chat_p.add_argument("--message", "-m", help="Message to send (for 'send')")
+    chat_p.add_argument("--limit", type=int, default=50, help="Max messages (for 'history')")
+    chat_p.add_argument("--type", choices=["chat", "system", "game_info"], help="Filter by type")
+    chat_p.add_argument("--filter", help="Regex filter pattern (for 'history')")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -352,6 +483,8 @@ def main():
     commands = {
         "status": cmd_status,
         "shader": cmd_shader,
+        "resourcepack": cmd_resourcepack,
+        "chat": cmd_chat,
         "capture": cmd_capture,
         "analyze": cmd_analyze,
         "compare": cmd_compare,
