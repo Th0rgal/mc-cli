@@ -19,7 +19,7 @@ public class ChatCapture {
 
     public record ChatMessage(
         Instant timestamp,
-        String type,      // "chat", "system", "game_info", "action_bar"
+        String type,      // "chat", "system"
         String sender,    // Player name or null for system messages
         String content    // Raw message content
     ) {}

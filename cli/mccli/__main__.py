@@ -682,7 +682,7 @@ def main():
     chat_p.add_argument("action", choices=["send", "history", "clear"])
     chat_p.add_argument("--message", "-m", help="Message to send (for 'send')")
     chat_p.add_argument("--limit", type=int, default=50, help="Max messages (for 'history')")
-    chat_p.add_argument("--type", choices=["chat", "system", "game_info"], help="Filter by type")
+    chat_p.add_argument("--type", choices=["chat", "system"], help="Filter by type")
     chat_p.add_argument("--filter", help="Regex filter pattern (for 'history')")
 
     args = parser.parse_args()

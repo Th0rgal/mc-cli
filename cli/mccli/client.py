@@ -531,7 +531,7 @@ class Client:
 
         Args:
             limit: Maximum number of messages (default: 50)
-            type: Filter by type ("chat", "system", "game_info")
+            type: Filter by type ("chat", "system")
             filter: Regex pattern to filter content
 
         Returns:

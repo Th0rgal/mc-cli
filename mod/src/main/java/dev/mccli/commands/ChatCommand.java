@@ -17,7 +17,7 @@ import java.util.concurrent.CompletableFuture;
  * - action: "send" | "history" | "clear"
  * - message: chat message to send (for "send" action)
  * - limit: max messages to return (for "history", default: 50)
- * - type: filter by type "chat" | "system" | "game_info" (for "history")
+ * - type: filter by type "chat" | "system" (for "history")
  * - filter: regex pattern to filter messages (for "history")
  *
  * Actions:
