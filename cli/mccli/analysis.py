@@ -116,7 +116,7 @@ def read_png_pixels(path: str | Path) -> tuple[list[tuple[int, int, int]], int, 
     Read RGB pixel data from a PNG file.
     Returns (pixels, width, height) where pixels is list of (r, g, b) tuples.
 
-    Supports:
+    Supports (8-bit depth only):
     - color_type 0: Grayscale (converted to RGB)
     - color_type 2: RGB
     - color_type 4: Grayscale + Alpha (converted to RGB, alpha ignored)
@@ -124,6 +124,7 @@ def read_png_pixels(path: str | Path) -> tuple[list[tuple[int, int, int]], int, 
 
     Does not support:
     - color_type 3: Indexed/palette (raises ValueError)
+    - 16-bit depth images (raises ValueError)
     """
     path = Path(path)
 
@@ -160,9 +161,16 @@ def read_png_pixels(path: str | Path) -> tuple[list[tuple[int, int, int]], int, 
         if width == 0 or height == 0:
             raise ValueError("Could not read PNG dimensions")
 
+        # Check for unsupported bit depth (only 8-bit is supported)
+        if bit_depth != 8:
+            raise ValueError(f"Only 8-bit PNG images are supported, got {bit_depth}-bit")
+
         # Check for unsupported color types
         if color_type == 3:
             raise ValueError("Indexed/palette PNG images (color_type=3) are not supported")
+
+        if color_type not in (0, 2, 4, 6):
+            raise ValueError(f"Unsupported PNG color type: {color_type}")
 
         # Decompress
         raw = zlib.decompress(idat_data)
@@ -173,7 +181,7 @@ def read_png_pixels(path: str | Path) -> tuple[list[tuple[int, int, int]], int, 
         # color_type 4: Grayscale + Alpha (2 bytes)
         # color_type 6: RGBA (4 bytes)
         bpp_map = {0: 1, 2: 3, 4: 2, 6: 4}
-        bpp = bpp_map.get(color_type, 3)
+        bpp = bpp_map[color_type]  # No fallback needed, we validated above
         row_bytes = width * bpp
 
         # Parse scanlines
@@ -211,6 +219,7 @@ def read_png_pixels(path: str | Path) -> tuple[list[tuple[int, int, int]], int, 
             prev_row = bytes(row)
 
             # Extract pixels based on color type
+            # Note: color_type is validated earlier, so all cases should be covered
             for x in range(width):
                 offset = x * bpp
                 if color_type == 0:  # Grayscale
@@ -221,7 +230,7 @@ def read_png_pixels(path: str | Path) -> tuple[list[tuple[int, int, int]], int, 
                 elif color_type == 4:  # Grayscale + Alpha
                     gray = row[offset]
                     pixels.append((gray, gray, gray))
-                elif color_type == 6:  # RGBA
+                else:  # color_type == 6, RGBA
                     pixels.append((row[offset], row[offset + 1], row[offset + 2]))
 
         return pixels, width, height
