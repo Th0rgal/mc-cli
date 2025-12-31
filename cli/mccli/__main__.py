@@ -8,15 +8,25 @@ Usage:
 Commands:
     status          Check game connection and state
     shader          Shader management (list, get, set, reload, errors)
+    resourcepack    Resource pack management (list, enabled, enable, disable, reload)
+    chat            Chat messaging (send, history, clear)
     capture         Take a screenshot
     analyze         Analyze screenshot metrics
     compare         Compare two screenshots
     teleport        Move player to coordinates
-    time            Get or set world time
+    time            Get or set world time (time get / time set <value>)
     perf            Get performance metrics
     logs            Get game logs
     execute         Run a Minecraft command
+    item            Inspect held item or inventory slot
+    inventory       List inventory contents
+    block           Probe targeted or specific block
+    entity          Probe targeted entity
+    macro           Run a JSON macro script
+    server          Server connection (connect, disconnect, status)
 """
+
+from __future__ import annotations
 
 import argparse
 import json
@@ -137,6 +147,16 @@ def cmd_capture(args):
             else:
                 print(f"Screenshot saved: {data['path']}")
                 print(f"Size: {data['width']}x{data['height']}")
+                meta = data.get("metadata", {})
+                if meta:
+                    print("Metadata:")
+                    if meta.get("dimension"):
+                        print(f"  dimension: {meta.get('dimension')}")
+                    if meta.get("time") is not None:
+                        print(f"  time: {meta.get('time')}")
+                    if meta.get("shader"):
+                        shader = meta.get("shader", {})
+                        print(f"  shader: {shader.get('name')} (active={shader.get('active')})")
 
             return 0
     except Exception as e:
@@ -218,15 +238,21 @@ def cmd_time(args):
     """Get or set time."""
     try:
         with Client(args.host, args.port) as mc:
-            if args.value is not None:
+            # Default to "get" if no subcommand specified
+            action = getattr(args, "time_action", None) or "get"
+
+            if action == "set":
                 mc.time_set(args.value)
                 print(f"Time set to: {args.value}")
-            else:
-                time = mc.time_get()
+            else:  # get
+                time_val = mc.time_get()
                 if args.json:
-                    output({"time": time}, True)
+                    output({"time": time_val}, True)
                 else:
-                    print(f"World time: {time}")
+                    # Convert ticks to human-readable
+                    hour = (time_val // 1000 + 6) % 24
+                    minute = (time_val % 1000) * 60 // 1000
+                    print(f"World time: {time_val} ({hour:02d}:{minute:02d})")
         return 0
     except Exception as e:
         output({"error": str(e)}, args.json)
@@ -249,19 +275,56 @@ def cmd_logs(args):
     """Get game logs."""
     try:
         with Client(args.host, args.port) as mc:
-            logs = mc.logs(
-                level=args.level,
-                limit=args.limit,
-                filter=args.filter,
-                clear=args.clear
-            )
+            if args.follow:
+                last_id = args.since or 0
+                import time
+                import re
 
-            if args.json:
-                output({"logs": logs, "count": len(logs)}, True)
+                start = time.monotonic()
+                pattern = re.compile(args.until) if args.until else None
+
+                while True:
+                    resp = mc.logs(
+                        level=args.level,
+                        limit=args.limit,
+                        filter=args.filter,
+                        clear=args.clear,
+                        since=last_id,
+                        return_meta=True
+                    )
+                    logs = resp.get("logs", [])
+
+                    for log in logs:
+                        if args.json:
+                            output(log, True)
+                        else:
+                            level = log["level"].upper()
+                            print(f"[{level}] {log['logger']}: {log['message']}")
+
+                        if pattern and pattern.search(log.get("message", "")):
+                            return 0
+
+                    last_id = resp.get("last_id", last_id)
+
+                    if args.timeout is not None and (time.monotonic() - start) * 1000 > args.timeout:
+                        return 1
+
+                    time.sleep(args.interval / 1000.0)
             else:
-                for log in logs:
-                    level = log["level"].upper()
-                    print(f"[{level}] {log['logger']}: {log['message']}")
+                logs = mc.logs(
+                    level=args.level,
+                    limit=args.limit,
+                    filter=args.filter,
+                    clear=args.clear,
+                    since=args.since or 0
+                )
+
+                if args.json:
+                    output({"logs": logs, "count": len(logs)}, True)
+                else:
+                    for log in logs:
+                        level = log["level"].upper()
+                        print(f"[{level}] {log['logger']}: {log['message']}")
 
         return 0
     except Exception as e:
@@ -279,6 +342,297 @@ def cmd_execute(args):
             else:
                 print(f"Executed: /{data['command']}")
         return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_item(args):
+    """Inspect items."""
+    try:
+        with Client(args.host, args.port) as mc:
+            include_nbt = not args.no_nbt
+            if args.slot is not None:
+                data = mc.item_slot(args.slot, include_nbt=include_nbt)
+            else:
+                data = mc.item_hand(args.hand, include_nbt=include_nbt)
+
+            if args.json:
+                output(data, True)
+            else:
+                item = data.get("item", {})
+                if item.get("empty"):
+                    print("No item")
+                else:
+                    print(f"{item.get('name')} ({item.get('id')}) x{item.get('count')}")
+                    if "custom_model_data" in item:
+                        print(f"CustomModelData: {item.get('custom_model_data')}")
+                    if "enchantments" in item:
+                        print("Enchantments:")
+                        for enchant in item.get("enchantments", []):
+                            print(f"  {enchant.get('id')} {enchant.get('level')}")
+                    if include_nbt and item.get("nbt"):
+                        print(f"NBT: {item.get('nbt')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_inventory(args):
+    """List inventory contents."""
+    try:
+        with Client(args.host, args.port) as mc:
+            data = mc.inventory_list(
+                section=args.section,
+                include_empty=args.include_empty,
+                include_nbt=args.include_nbt
+            )
+            if args.json:
+                output(data, True)
+            else:
+                for entry in data.get("items", []):
+                    slot = entry.get("slot")
+                    slot_type = entry.get("slot_type")
+                    item = entry.get("item", {})
+                    if item.get("empty"):
+                        print(f"[{slot_type} {slot}] (empty)")
+                    else:
+                        print(f"[{slot_type} {slot}] {item.get('name')} ({item.get('id')}) x{item.get('count')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_block(args):
+    """Probe a block."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.x is not None and args.y is not None and args.z is not None:
+                data = mc.block_at(args.x, args.y, args.z, include_nbt=args.include_nbt)
+            else:
+                data = mc.block_target(max_distance=args.max_distance, include_nbt=args.include_nbt)
+
+            if args.json:
+                output(data, True)
+            else:
+                if data.get("hit") is False:
+                    print("No block targeted")
+                else:
+                    pos = data.get("pos", {})
+                    print(f"{data.get('id')} at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}")
+                    if data.get("properties"):
+                        print(f"Properties: {data.get('properties')}")
+                    if args.include_nbt and data.get("block_entity"):
+                        print(f"BlockEntity: {data.get('block_entity')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_entity(args):
+    """Probe a targeted entity."""
+    try:
+        with Client(args.host, args.port) as mc:
+            data = mc.entity_target(max_distance=args.max_distance, include_nbt=args.include_nbt)
+
+            if args.json:
+                output(data, True)
+            else:
+                if data.get("hit") is False:
+                    print("No entity targeted")
+                else:
+                    pos = data.get("pos", {})
+                    print(f"{data.get('name')} ({data.get('id')}) at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}")
+                    if args.include_nbt and data.get("nbt"):
+                        print(f"NBT: {data.get('nbt')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_macro(args):
+    """Run a JSON macro."""
+    try:
+        from .macro import run_macro
+
+        results = run_macro(args.file, args.host, args.port, args.json)
+        if args.json:
+            output(results, True)
+        else:
+            for step in results.get("steps", []):
+                status = "OK" if step.get("success") else "ERR"
+                print(f"[{status}] {step.get('index')}: {step.get('type')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_resourcepack(args):
+    """Resource pack management."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "list":
+                packs = mc.resourcepack_list()
+                if args.json:
+                    output({"packs": packs, "count": len(packs)}, True)
+                else:
+                    print(f"Available resource packs ({len(packs)}):")
+                    for p in packs:
+                        status = "[enabled]" if p.get("enabled") else ""
+                        required = "(required)" if p.get("required") else ""
+                        print(f"  {p['id']} {status} {required}")
+                        if p.get("description"):
+                            print(f"    {p['description']}")
+
+            elif args.action == "enabled":
+                packs = mc.resourcepack_enabled()
+                if args.json:
+                    output({"packs": packs, "count": len(packs)}, True)
+                else:
+                    print(f"Enabled resource packs ({len(packs)}):")
+                    for p in packs:
+                        print(f"  {p['id']}")
+
+            elif args.action == "enable":
+                if not args.name:
+                    print("Error: --name required for 'enable' action")
+                    return 1
+                data = mc.resourcepack_enable(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        if data.get("already_enabled"):
+                            print(f"Resource pack already enabled: {args.name}")
+                        else:
+                            print(f"Resource pack enabled: {data.get('id')}")
+                    else:
+                        print(f"Failed to enable: {data.get('error')}")
+
+            elif args.action == "disable":
+                if not args.name:
+                    print("Error: --name required for 'disable' action")
+                    return 1
+                data = mc.resourcepack_disable(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        if data.get("already_disabled"):
+                            print(f"Resource pack already disabled: {args.name}")
+                        else:
+                            print(f"Resource pack disabled: {data.get('id')}")
+                    else:
+                        print(f"Failed to disable: {data.get('error')}")
+
+            elif args.action == "reload":
+                data = mc.resourcepack_reload()
+                if args.json:
+                    output(data, True)
+                else:
+                    print("Resource packs reloading...")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_chat(args):
+    """Chat messaging."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "send":
+                if not args.message:
+                    print("Error: --message required for 'send' action")
+                    return 1
+                data = mc.chat_send(args.message)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("type") == "command":
+                        print(f"Sent command: /{data.get('command')}")
+                    else:
+                        print(f"Sent message: {data.get('message')}")
+
+            elif args.action == "history":
+                messages = mc.chat_history(
+                    limit=args.limit,
+                    type=args.type,
+                    filter=args.filter
+                )
+                if args.json:
+                    output({"messages": messages, "count": len(messages)}, True)
+                else:
+                    print(f"Chat history ({len(messages)} messages):")
+                    for msg in messages:
+                        sender = msg.get("sender", "")
+                        prefix = f"<{sender}> " if sender else f"[{msg['type']}] "
+                        print(f"  {prefix}{msg['content']}")
+
+            elif args.action == "clear":
+                cleared = mc.chat_clear()
+                if args.json:
+                    output({"cleared": cleared}, True)
+                else:
+                    print(f"Cleared {cleared} messages from buffer")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_server(args):
+    """Server connection management."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "connect":
+                if not args.address:
+                    print("Error: address required for 'connect' action")
+                    return 1
+                data = mc.server_connect(args.address, args.server_port)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print(f"Connecting to {data.get('address')}:{data.get('port')}...")
+                    else:
+                        print(f"Failed to connect: {data.get('error')}")
+
+            elif args.action == "disconnect":
+                data = mc.server_disconnect()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print("Disconnected from server")
+                    else:
+                        print(f"Failed to disconnect: {data.get('error')}")
+
+            elif args.action == "status":
+                data = mc.server_status()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("connected"):
+                        if data.get("multiplayer"):
+                            print(f"Connected to: {data.get('server_address')}")
+                            if data.get("server_name"):
+                                print(f"  Server name: {data.get('server_name')}")
+                            if data.get("player_count"):
+                                print(f"  Players: {data.get('player_count')}")
+                        else:
+                            print(f"In singleplayer world: {data.get('world_name', 'Unknown')}")
+                    else:
+                        print("Not connected to any server")
+
+            return 0
     except Exception as e:
         output({"error": str(e)}, args.json)
         return 1
@@ -327,7 +681,10 @@ def main():
 
     # time
     time_p = sub.add_parser("time", help="Get or set world time")
-    time_p.add_argument("value", nargs="?", help="Time value (0-24000 or name)")
+    time_sub = time_p.add_subparsers(dest="time_action")
+    time_sub.add_parser("get", help="Get current world time")
+    time_set_p = time_sub.add_parser("set", help="Set world time")
+    time_set_p.add_argument("value", help="Time value (0-24000 or: day, noon, night, midnight, sunrise, sunset)")
 
     # perf
     sub.add_parser("perf", help="Get performance metrics")
@@ -338,10 +695,63 @@ def main():
     logs_p.add_argument("--limit", type=int, default=50, help="Max entries")
     logs_p.add_argument("--filter", help="Regex filter pattern")
     logs_p.add_argument("--clear", action="store_true", help="Clear logs after returning")
+    logs_p.add_argument("--since", type=int, help="Only return entries with id > since")
+    logs_p.add_argument("--follow", action="store_true", help="Stream logs")
+    logs_p.add_argument("--interval", type=int, default=500, help="Polling interval for --follow (ms)")
+    logs_p.add_argument("--until", help="Regex to stop streaming when matched")
+    logs_p.add_argument("--timeout", type=int, help="Stop streaming after timeout (ms)")
 
     # execute
     exec_p = sub.add_parser("execute", help="Run a Minecraft command")
     exec_p.add_argument("cmd", metavar="command", help="Command to execute (without /)")
+
+    # item
+    item_p = sub.add_parser("item", help="Inspect held item or inventory slot")
+    item_p.add_argument("--hand", default="main", choices=["main", "off"], help="Which hand to inspect")
+    item_p.add_argument("--slot", type=int, help="Inventory slot index")
+    item_p.add_argument("--no-nbt", action="store_true", help="Exclude NBT from output")
+
+    # inventory
+    inv_p = sub.add_parser("inventory", help="List inventory contents")
+    inv_p.add_argument("--section", choices=["hotbar", "main", "armor", "offhand"], help="Inventory section")
+    inv_p.add_argument("--include-empty", action="store_true", help="Include empty slots")
+    inv_p.add_argument("--include-nbt", action="store_true", help="Include NBT for each item")
+
+    # block
+    block_p = sub.add_parser("block", help="Probe targeted or specific block")
+    block_p.add_argument("--x", type=int, help="Block X")
+    block_p.add_argument("--y", type=int, help="Block Y")
+    block_p.add_argument("--z", type=int, help="Block Z")
+    block_p.add_argument("--max-distance", type=float, default=5.0, help="Max raycast distance")
+    block_p.add_argument("--include-nbt", action="store_true", help="Include block entity NBT")
+
+    # entity
+    entity_p = sub.add_parser("entity", help="Probe targeted entity")
+    entity_p.add_argument("--max-distance", type=float, default=5.0, help="Max target distance")
+    entity_p.add_argument("--include-nbt", action="store_true", help="Include entity NBT")
+
+    # macro
+    macro_p = sub.add_parser("macro", help="Run a JSON macro")
+    macro_p.add_argument("file", help="Path to macro JSON (or - for stdin)")
+
+    # resourcepack
+    rp_p = sub.add_parser("resourcepack", help="Resource pack management")
+    rp_p.add_argument("action", choices=["list", "enabled", "enable", "disable", "reload"])
+    rp_p.add_argument("--name", help="Resource pack name/ID (for 'enable' and 'disable')")
+
+    # chat
+    chat_p = sub.add_parser("chat", help="Chat messaging")
+    chat_p.add_argument("action", choices=["send", "history", "clear"])
+    chat_p.add_argument("--message", "-m", help="Message to send (for 'send')")
+    chat_p.add_argument("--limit", type=int, default=50, help="Max messages (for 'history')")
+    chat_p.add_argument("--type", choices=["chat", "system"], help="Filter by type")
+    chat_p.add_argument("--filter", help="Regex filter pattern (for 'history')")
+
+    # server
+    server_p = sub.add_parser("server", help="Server connection management")
+    server_p.add_argument("action", choices=["connect", "disconnect", "status"])
+    server_p.add_argument("address", nargs="?", help="Server address (for 'connect')")
+    server_p.add_argument("--server-port", type=int, default=25565, help="Server port (default: 25565)")
 
     args = parser.parse_args()
 
@@ -352,6 +762,8 @@ def main():
     commands = {
         "status": cmd_status,
         "shader": cmd_shader,
+        "resourcepack": cmd_resourcepack,
+        "chat": cmd_chat,
         "capture": cmd_capture,
         "analyze": cmd_analyze,
         "compare": cmd_compare,
@@ -360,6 +772,12 @@ def main():
         "perf": cmd_perf,
         "logs": cmd_logs,
         "execute": lambda a: cmd_execute(argparse.Namespace(**{**vars(a), "command": a.cmd})),
+        "item": cmd_item,
+        "inventory": cmd_inventory,
+        "block": cmd_block,
+        "entity": cmd_entity,
+        "macro": cmd_macro,
+        "server": cmd_server,
     }
 
     return commands[args.command](args)

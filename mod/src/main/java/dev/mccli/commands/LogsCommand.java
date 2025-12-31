@@ -16,6 +16,7 @@ import java.util.concurrent.CompletableFuture;
  * - limit: max number of entries (default: 50)
  * - filter: regex pattern to filter messages (optional)
  * - clear: clear captured logs after returning (default: false)
+ * - since: only return entries with id > since (optional)
  *
  * Response:
  * - logs: array of {timestamp, level, logger, message}
@@ -33,13 +34,15 @@ public class LogsCommand implements Command {
         int limit = params.has("limit") ? params.get("limit").getAsInt() : 50;
         String filter = params.has("filter") ? params.get("filter").getAsString() : null;
         boolean clear = params.has("clear") && params.get("clear").getAsBoolean();
+        long since = params.has("since") ? params.get("since").getAsLong() : 0;
 
         return MainThreadExecutor.submit(() -> {
-            List<LogCapture.LogEntry> entries = LogCapture.getRecentLogs(level, limit, filter);
+            List<LogCapture.LogEntry> entries = LogCapture.getRecentLogs(level, limit, filter, since);
 
             JsonArray logsArray = new JsonArray();
             for (LogCapture.LogEntry entry : entries) {
                 JsonObject logJson = new JsonObject();
+                logJson.addProperty("id", entry.id());
                 logJson.addProperty("timestamp", entry.timestamp());
                 logJson.addProperty("level", entry.level());
                 logJson.addProperty("logger", entry.logger());
@@ -54,6 +57,8 @@ public class LogsCommand implements Command {
             JsonObject result = new JsonObject();
             result.add("logs", logsArray);
             result.addProperty("count", logsArray.size());
+            result.addProperty("last_id", entries.isEmpty() ? since : entries.get(entries.size() - 1).id());
+            result.addProperty("total_buffered", LogCapture.getCount());
             return result;
         });
     }

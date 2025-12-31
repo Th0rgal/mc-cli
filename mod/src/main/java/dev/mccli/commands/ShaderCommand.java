@@ -34,12 +34,23 @@ public class ShaderCommand implements Command {
     public CompletableFuture<JsonObject> execute(JsonObject params) {
         String action = params.has("action") ? params.get("action").getAsString() : "get";
 
+        // Validate action before submitting to main thread
+        if (!List.of("list", "get", "set", "reload", "disable", "errors").contains(action)) {
+            CompletableFuture<JsonObject> future = new CompletableFuture<>();
+            future.completeExceptionally(new IllegalArgumentException("Unknown action: " + action));
+            return future;
+        }
+
+        // Validate 'set' action has required 'name' parameter
+        if (action.equals("set") && !params.has("name")) {
+            CompletableFuture<JsonObject> future = new CompletableFuture<>();
+            future.completeExceptionally(new IllegalArgumentException("Missing required parameter: name"));
+            return future;
+        }
+
         return MainThreadExecutor.submit(() -> {
             if (!IrisHelper.isLoaded()) {
-                JsonObject result = new JsonObject();
-                result.addProperty("error", "Iris is not loaded");
-                result.addProperty("iris_loaded", false);
-                return result;
+                throw new IllegalStateException("Iris is not loaded");
             }
 
             return switch (action) {
@@ -49,11 +60,7 @@ public class ShaderCommand implements Command {
                 case "reload" -> reloadShaders();
                 case "disable" -> disableShaders();
                 case "errors" -> getShaderErrors();
-                default -> {
-                    JsonObject result = new JsonObject();
-                    result.addProperty("error", "Unknown action: " + action);
-                    yield result;
-                }
+                default -> throw new IllegalArgumentException("Unknown action: " + action);
             };
         });
     }
@@ -82,16 +89,11 @@ public class ShaderCommand implements Command {
     }
 
     private JsonObject setShaderPack(JsonObject params) {
-        JsonObject result = new JsonObject();
-
-        if (!params.has("name")) {
-            result.addProperty("error", "Missing required parameter: name");
-            return result;
-        }
-
+        // Note: 'name' parameter is validated in execute() before this is called
         String name = params.get("name").getAsString();
         boolean success = IrisHelper.setShaderPack(name);
 
+        JsonObject result = new JsonObject();
         result.addProperty("success", success);
         result.addProperty("name", name);
         return result;

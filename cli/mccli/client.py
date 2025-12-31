@@ -5,10 +5,12 @@ Connects to the MC-CLI mod running inside Minecraft and sends commands.
 All methods return structured data suitable for LLM consumption.
 """
 
+from __future__ import annotations
+
 import json
 import socket
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Optional, Any, Union, List
 
 
 @dataclass
@@ -106,6 +108,17 @@ class Client:
             data=response.get("data", {}),
             error=response.get("error")
         )
+
+    def command(self, command: str, params: Optional[dict] = None) -> dict:
+        """
+        Send a raw command with params and return data payload.
+
+        Useful for macro runners and LLM-driven workflows.
+        """
+        result = self._send(command, params)
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
 
     # =========================================================================
     # Core Commands
@@ -332,8 +345,10 @@ class Client:
         level: str = "info",
         limit: int = 50,
         filter: Optional[str] = None,
-        clear: bool = False
-    ) -> list[dict]:
+        clear: bool = False,
+        since: int = 0,
+        return_meta: bool = False
+    ) -> list[dict] | dict:
         """
         Get recent game logs.
 
@@ -342,15 +357,257 @@ class Client:
             limit: Maximum number of entries
             filter: Regex pattern to filter messages
             clear: Clear logs after returning
+            since: Only return entries with id > since
+            return_meta: Return full response with cursor data
 
         Returns:
-            List of {timestamp: str, level: str, logger: str, message: str}
+            List of {id, timestamp, level, logger, message} or full response dict
         """
         params = {"level": level, "limit": limit, "clear": clear}
         if filter:
             params["filter"] = filter
+        if since:
+            params["since"] = since
 
         result = self._send("logs", params)
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
+        if return_meta:
+            return result.data
         return result.data.get("logs", [])
+
+    # =========================================================================
+    # Inspection Commands
+    # =========================================================================
+
+    def item_hand(self, hand: str = "main", include_nbt: bool = True) -> dict:
+        """
+        Get item in main or off hand.
+        """
+        params = {"action": "hand", "hand": hand, "include_nbt": include_nbt}
+        return self.command("item", params)
+
+    def item_slot(self, slot: int, include_nbt: bool = True) -> dict:
+        """
+        Get item in a specific inventory slot.
+        """
+        params = {"action": "slot", "slot": slot, "include_nbt": include_nbt}
+        return self.command("item", params)
+
+    def inventory_list(
+        self,
+        section: Optional[str] = None,
+        include_empty: bool = False,
+        include_nbt: bool = False
+    ) -> dict:
+        """
+        List inventory items by section.
+        """
+        params: dict[str, Any] = {
+            "action": "list",
+            "include_empty": include_empty,
+            "include_nbt": include_nbt
+        }
+        if section:
+            params["section"] = section
+        return self.command("inventory", params)
+
+    def block_target(self, max_distance: float = 5.0, include_nbt: bool = False) -> dict:
+        """
+        Get the targeted block.
+        """
+        params = {"action": "target", "max_distance": max_distance, "include_nbt": include_nbt}
+        return self.command("block", params)
+
+    def block_at(self, x: int, y: int, z: int, include_nbt: bool = False) -> dict:
+        """
+        Get block info at a position.
+        """
+        params = {"action": "at", "x": x, "y": y, "z": z, "include_nbt": include_nbt}
+        return self.command("block", params)
+
+    def entity_target(self, max_distance: float = 5.0, include_nbt: bool = False) -> dict:
+        """
+        Get the targeted entity.
+        """
+        params = {"action": "target", "max_distance": max_distance, "include_nbt": include_nbt}
+        return self.command("entity", params)
+
+    # =========================================================================
+    # Resource Pack Commands
+    # =========================================================================
+
+    def resourcepack_list(self) -> list[dict]:
+        """
+        List all available resource packs.
+
+        Returns:
+            List of {id: str, name: str, description: str, enabled: bool, required: bool}
+        """
+        result = self._send("resourcepack", {"action": "list"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("packs", [])
+
+    def resourcepack_enabled(self) -> list[dict]:
+        """
+        List currently enabled resource packs.
+
+        Returns:
+            List of {id: str, name: str, description: str}
+        """
+        result = self._send("resourcepack", {"action": "enabled"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("packs", [])
+
+    def resourcepack_enable(self, name: str) -> dict:
+        """
+        Enable a resource pack.
+
+        Args:
+            name: Resource pack ID or display name
+
+        Returns:
+            dict with {success: bool, id: str, name: str}
+        """
+        result = self._send("resourcepack", {"action": "enable", "name": name})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def resourcepack_disable(self, name: str) -> dict:
+        """
+        Disable a resource pack.
+
+        Args:
+            name: Resource pack ID or display name
+
+        Returns:
+            dict with {success: bool, id: str, name: str}
+        """
+        result = self._send("resourcepack", {"action": "disable", "name": name})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def resourcepack_reload(self) -> dict:
+        """
+        Reload all resource packs.
+
+        Returns:
+            dict with {success: bool, reloading: bool}
+        """
+        result = self._send("resourcepack", {"action": "reload"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    # =========================================================================
+    # Chat Commands
+    # =========================================================================
+
+    def chat_send(self, message: str) -> dict:
+        """
+        Send a chat message or command.
+
+        Args:
+            message: Message to send. If starts with /, sent as command.
+
+        Returns:
+            dict with {sent: bool, type: "chat" | "command", message/command: str}
+        """
+        result = self._send("chat", {"action": "send", "message": message})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def chat_history(
+        self,
+        limit: int = 50,
+        type: Optional[str] = None,
+        filter: Optional[str] = None
+    ) -> list[dict]:
+        """
+        Get recent chat messages.
+
+        Args:
+            limit: Maximum number of messages (default: 50)
+            type: Filter by type ("chat", "system")
+            filter: Regex pattern to filter content
+
+        Returns:
+            List of {timestamp: str, type: str, sender: str?, content: str}
+        """
+        params = {"action": "history", "limit": limit}
+        if type:
+            params["type"] = type
+        if filter:
+            params["filter"] = filter
+
+        result = self._send("chat", params)
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("messages", [])
+
+    def chat_clear(self) -> int:
+        """
+        Clear chat history buffer.
+
+        Returns:
+            Number of messages cleared
+        """
+        result = self._send("chat", {"action": "clear"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("cleared", 0)
+
+    # =========================================================================
+    # Server Connection Commands
+    # =========================================================================
+
+    def server_connect(self, address: str, port: int = 25565) -> dict:
+        """
+        Connect to a multiplayer server.
+
+        Args:
+            address: Server address (hostname or IP)
+            port: Server port (default: 25565)
+
+        Returns:
+            dict with {success: bool, connecting: bool, address: str, port: int}
+        """
+        result = self._send("server", {"action": "connect", "address": address, "port": port})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def server_disconnect(self) -> dict:
+        """
+        Disconnect from current server/world.
+
+        Returns:
+            dict with {success: bool, disconnected: bool, was_multiplayer: bool}
+        """
+        result = self._send("server", {"action": "disconnect"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def server_status(self) -> dict:
+        """
+        Get current server connection status.
+
+        Returns:
+            dict with:
+            - connected: bool
+            - multiplayer: bool (if connected)
+            - server_name: str (if multiplayer)
+            - server_address: str (if multiplayer)
+            - player_count: int (if multiplayer)
+            - world_name: str (if singleplayer)
+        """
+        result = self._send("server", {"action": "status"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data

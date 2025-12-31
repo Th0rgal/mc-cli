@@ -214,6 +214,27 @@ Take screenshot.
 }
 ```
 
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "path": "/absolute/path/screenshot.png",
+    "width": 1920,
+    "height": 1080,
+    "metadata": {
+      "timestamp": "2024-01-15T10:30:45Z",
+      "player": {"x": 0.0, "y": 64.0, "z": 0.0, "yaw": 0.0, "pitch": 0.0},
+      "time": 6000,
+      "dimension": "minecraft:overworld",
+      "iris_loaded": true,
+      "shader": {"active": true, "name": "ComplementaryShaders_v4.6"},
+      "resource_packs": ["vanilla"]
+    }
+  }
+}
+```
+
 ### perf
 
 Get performance metrics.
@@ -235,7 +256,23 @@ Get game logs.
     "level": "info",
     "limit": 50,
     "filter": "shader",
-    "clear": false
+    "clear": false,
+    "since": 0
+  }
+}
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "data": {
+    "logs": [
+      {"id": 42, "timestamp": "2024-01-15T10:30:45Z", "level": "info", "logger": "net.minecraft", "message": "Loading world"}
+    ],
+    "count": 1,
+    "last_id": 42,
+    "total_buffered": 128
   }
 }
 ```
@@ -249,6 +286,154 @@ Run Minecraft command.
 {"command": "execute", "params": {"command": "weather clear"}}
 ```
 
+### server
+
+Server connection management.
+
+**Request (connect):**
+```json
+{"command": "server", "params": {"action": "connect", "address": "play.example.com", "port": 25565}}
+```
+
+**Request (disconnect):**
+```json
+{"command": "server", "params": {"action": "disconnect"}}
+```
+
+**Request (status):**
+```json
+{"command": "server", "params": {"action": "status"}}
+```
+
+**Response (connect):**
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "connecting": true,
+    "address": "play.example.com",
+    "port": 25565
+  }
+}
+```
+
+**Response (disconnect):**
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "disconnected": true,
+    "was_multiplayer": true,
+    "previous_world": "multiplayer"
+  }
+}
+```
+
+**Response (status):**
+```json
+{
+  "success": true,
+  "data": {
+    "connected": true,
+    "multiplayer": true,
+    "server_name": "Example Server",
+    "server_address": "play.example.com:25565",
+    "player_count": 12
+  }
+}
+```
+
+### resourcepack
+
+Resource pack management.
+
+**Request (list):**
+```json
+{"command": "resourcepack", "params": {"action": "list"}}
+```
+
+**Request (enabled):**
+```json
+{"command": "resourcepack", "params": {"action": "enabled"}}
+```
+
+**Request (enable):**
+```json
+{"command": "resourcepack", "params": {"action": "enable", "name": "MyPack"}}
+```
+
+**Request (disable):**
+```json
+{"command": "resourcepack", "params": {"action": "disable", "name": "MyPack"}}
+```
+
+**Request (reload):**
+```json
+{"command": "resourcepack", "params": {"action": "reload"}}
+```
+
+### chat
+
+Chat send/history.
+
+**Request (send):**
+```json
+{"command": "chat", "params": {"action": "send", "message": "hello"}}
+```
+
+**Request (history):**
+```json
+{"command": "chat", "params": {"action": "history", "limit": 20}}
+```
+
+### item
+
+Item inspection.
+
+**Request (hand):**
+```json
+{"command": "item", "params": {"action": "hand", "hand": "main", "include_nbt": true}}
+```
+
+**Request (slot):**
+```json
+{"command": "item", "params": {"action": "slot", "slot": 5}}
+```
+
+### inventory
+
+Inventory listing.
+
+**Request:**
+```json
+{"command": "inventory", "params": {"action": "list", "section": "hotbar", "include_empty": false}}
+```
+
+### block
+
+Block probes.
+
+**Request (target):**
+```json
+{"command": "block", "params": {"action": "target", "max_distance": 5, "include_nbt": false}}
+```
+
+**Request (at):**
+```json
+{"command": "block", "params": {"action": "at", "x": 10, "y": 64, "z": -20, "include_nbt": true}}
+```
+
+### entity
+
+Entity probes.
+
+**Request (target):**
+```json
+{"command": "entity", "params": {"action": "target", "max_distance": 6, "include_nbt": true}}
+```
+
 ## Example Session
 
 ```
@@ -259,7 +444,7 @@ Client: {"id":"2","command":"shader","params":{"action":"reload"}}\n
 Server: {"id":"2","success":true,"data":{"reloaded":true,"has_errors":false}}\n
 
 Client: {"id":"3","command":"screenshot","params":{"path":"/tmp/test.png","clean":true}}\n
-Server: {"id":"3","success":true,"data":{"path":"/tmp/test.png","width":1920,"height":1080}}\n
+Server: {"id":"3","success":true,"data":{"path":"/tmp/test.png","width":1920,"height":1080,"metadata":{"time":6000,"dimension":"minecraft:overworld"}}}\n
 ```
 
 ## Implementation Notes

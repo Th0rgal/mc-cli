@@ -1,5 +1,5 @@
 plugins {
-    id 'fabric-loom' version '1.9-SNAPSHOT'
+    id 'fabric-loom' version '1.7-SNAPSHOT'
     id 'java'
 }
 
@@ -19,7 +19,7 @@ dependencies {
     modImplementation "net.fabricmc.fabric-api:fabric-api:${project.fabric_version}"
 
     // Iris (optional, for shader integration)
-    modCompileOnly "maven.modrinth:iris:${project.iris_version}"
+    // modCompileOnly "maven.modrinth:iris:${project.iris_version}"
 
     // Gson for JSON
     implementation 'com.google.code.gson:gson:2.10.1'

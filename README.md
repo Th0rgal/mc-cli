@@ -15,7 +15,7 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
          ▼                                      ▼
 ┌─────────────────┐                    ┌─────────────────┐
 │  Screenshot     │                    │   Minecraft     │
-│  Analysis       │                    │   + Iris        │
+│  Analysis       │                    │ + Iris (opt.)   │
 └─────────────────┘                    └─────────────────┘
 ```
 
@@ -26,6 +26,7 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
 - **teleport** - Move player to coordinates
 - **camera** - Set view direction
 - **time** - Control world time
+- **server** - Connect/disconnect/status for multiplayer servers
 
 ### 2. Shader Development
 - **shader.list** - List available shader packs
@@ -42,12 +43,25 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
 - **logs** - Stream game/shader logs ⭐ NEW
 - **perf** - Get FPS and frame timing ⭐ NEW
 
+### 5. Packs + Chat
+- **resourcepack** - List/enable/disable/reload resource packs ⭐ NEW
+- **chat** - Send messages and read chat history ⭐ NEW
+
+### 6. Inspection + Probes
+- **item** - Inspect held items or slots ⭐ NEW
+- **inventory** - List inventory contents ⭐ NEW
+- **block** - Probe targeted or specific blocks ⭐ NEW
+- **entity** - Probe targeted entities ⭐ NEW
+
+### 7. Automation
+- **macro** - Run JSON macro scripts ⭐ NEW
+
 ## Installation
 
 ### Fabric Mod
 1. Build the mod: `cd mod && ./gradlew build`
 2. Copy `build/libs/mccli-*.jar` to your Minecraft mods folder
-3. Requires: Minecraft 1.21.1, Fabric Loader 0.16.9+, Iris
+3. Requires: Minecraft 1.21.1, Fabric Loader 0.16.9+. Iris is optional for shader features.
 
 ### Python CLI
 ```bash
@@ -76,6 +90,15 @@ mccli analyze test.png
 
 # Get performance metrics
 mccli perf
+
+# Inspect held item
+mccli item --hand main
+
+# Probe targeted block
+mccli block --max-distance 5
+
+# Run a macro
+mccli macro ./macro.json
 ```
 
 ## JSON Protocol
@@ -169,7 +192,7 @@ mc-cli/
 └── docs/
     ├── COMMANDS.md
     ├── PROTOCOL.md
-    └── SHADER_DEBUGGING.md
+    └── LLM_INTEGRATION.md
 ```
 
 ## Design Philosophy

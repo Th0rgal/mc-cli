@@ -28,12 +28,27 @@ public class CommandDispatcher {
         // Shader commands
         register(new ShaderCommand());
 
+        // Resource pack commands
+        register(new ResourcePackCommand());
+
+        // Chat commands
+        register(new ChatCommand());
+
         // Visual commands
         register(new ScreenshotCommand());
 
         // Debugging commands
         register(new PerfCommand());
         register(new LogsCommand());
+
+        // Inspection commands
+        register(new ItemCommand());
+        register(new InventoryCommand());
+        register(new BlockCommand());
+        register(new EntityCommand());
+
+        // Server connection commands
+        register(new ServerCommand());
 
         McCliMod.LOGGER.info("Registered {} commands", commands.size());
     }

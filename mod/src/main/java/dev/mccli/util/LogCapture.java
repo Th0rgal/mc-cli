@@ -3,6 +3,7 @@ package dev.mccli.util;
 import java.time.Instant;
 import java.util.*;
 import java.util.concurrent.ConcurrentLinkedDeque;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -19,6 +20,7 @@ import java.util.stream.Collectors;
 public class LogCapture {
     private static final int MAX_ENTRIES = 1000;
     private static final Deque<LogEntry> entries = new ConcurrentLinkedDeque<>();
+    private static final AtomicLong NEXT_ID = new AtomicLong(0);
 
     private static final Map<String, Integer> LEVEL_PRIORITY = Map.of(
         "error", 0,
@@ -32,6 +34,7 @@ public class LogCapture {
      */
     public static void addEntry(String level, String logger, String message) {
         LogEntry entry = new LogEntry(
+            NEXT_ID.incrementAndGet(),
             Instant.now().toString(),
             level.toLowerCase(),
             logger,
@@ -49,13 +52,14 @@ public class LogCapture {
     /**
      * Get recent log entries matching criteria.
      */
-    public static List<LogEntry> getRecentLogs(String minLevel, int limit, String filterPattern) {
+    public static List<LogEntry> getRecentLogs(String minLevel, int limit, String filterPattern, long sinceId) {
         int minPriority = LEVEL_PRIORITY.getOrDefault(minLevel.toLowerCase(), 2);
         Pattern pattern = filterPattern != null ? Pattern.compile(filterPattern, Pattern.CASE_INSENSITIVE) : null;
 
         return entries.stream()
             .filter(e -> LEVEL_PRIORITY.getOrDefault(e.level(), 2) <= minPriority)
             .filter(e -> pattern == null || pattern.matcher(e.message()).find() || pattern.matcher(e.logger()).find())
+            .filter(e -> sinceId <= 0 || e.id() > sinceId)
             .collect(Collectors.collectingAndThen(
                 Collectors.toList(),
                 list -> {
@@ -80,5 +84,9 @@ public class LogCapture {
         return entries.size();
     }
 
-    public record LogEntry(String timestamp, String level, String logger, String message) {}
+    public static long getLastId() {
+        return NEXT_ID.get();
+    }
+
+    public record LogEntry(long id, String timestamp, String level, String logger, String message) {}
 }
