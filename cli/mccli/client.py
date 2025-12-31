@@ -107,6 +107,17 @@ class Client:
             error=response.get("error")
         )
 
+    def command(self, command: str, params: Optional[dict] = None) -> dict:
+        """
+        Send a raw command with params and return data payload.
+
+        Useful for macro runners and LLM-driven workflows.
+        """
+        result = self._send(command, params)
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
     # =========================================================================
     # Core Commands
     # =========================================================================
@@ -332,8 +343,10 @@ class Client:
         level: str = "info",
         limit: int = 50,
         filter: Optional[str] = None,
-        clear: bool = False
-    ) -> list[dict]:
+        clear: bool = False,
+        since: int = 0,
+        return_meta: bool = False
+    ) -> list[dict] | dict:
         """
         Get recent game logs.
 
@@ -342,18 +355,81 @@ class Client:
             limit: Maximum number of entries
             filter: Regex pattern to filter messages
             clear: Clear logs after returning
+            since: Only return entries with id > since
+            return_meta: Return full response with cursor data
 
         Returns:
-            List of {timestamp: str, level: str, logger: str, message: str}
+            List of {id, timestamp, level, logger, message} or full response dict
         """
         params = {"level": level, "limit": limit, "clear": clear}
         if filter:
             params["filter"] = filter
+        if since:
+            params["since"] = since
 
         result = self._send("logs", params)
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
+        if return_meta:
+            return result.data
         return result.data.get("logs", [])
+
+    # =========================================================================
+    # Inspection Commands
+    # =========================================================================
+
+    def item_hand(self, hand: str = "main", include_nbt: bool = True) -> dict:
+        """
+        Get item in main or off hand.
+        """
+        params = {"action": "hand", "hand": hand, "include_nbt": include_nbt}
+        return self.command("item", params)
+
+    def item_slot(self, slot: int, include_nbt: bool = True) -> dict:
+        """
+        Get item in a specific inventory slot.
+        """
+        params = {"action": "slot", "slot": slot, "include_nbt": include_nbt}
+        return self.command("item", params)
+
+    def inventory_list(
+        self,
+        section: Optional[str] = None,
+        include_empty: bool = False,
+        include_nbt: bool = False
+    ) -> dict:
+        """
+        List inventory items by section.
+        """
+        params: dict[str, Any] = {
+            "action": "list",
+            "include_empty": include_empty,
+            "include_nbt": include_nbt
+        }
+        if section:
+            params["section"] = section
+        return self.command("inventory", params)
+
+    def block_target(self, max_distance: float = 5.0, include_nbt: bool = False) -> dict:
+        """
+        Get the targeted block.
+        """
+        params = {"action": "target", "max_distance": max_distance, "include_nbt": include_nbt}
+        return self.command("block", params)
+
+    def block_at(self, x: int, y: int, z: int, include_nbt: bool = False) -> dict:
+        """
+        Get block info at a position.
+        """
+        params = {"action": "at", "x": x, "y": y, "z": z, "include_nbt": include_nbt}
+        return self.command("block", params)
+
+    def entity_target(self, max_distance: float = 5.0, include_nbt: bool = False) -> dict:
+        """
+        Get the targeted entity.
+        """
+        params = {"action": "target", "max_distance": max_distance, "include_nbt": include_nbt}
+        return self.command("entity", params)
 
     # =========================================================================
     # Resource Pack Commands

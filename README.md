@@ -42,6 +42,19 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
 - **logs** - Stream game/shader logs ⭐ NEW
 - **perf** - Get FPS and frame timing ⭐ NEW
 
+### 5. Packs + Chat
+- **resourcepack** - List/enable/disable/reload resource packs ⭐ NEW
+- **chat** - Send messages and read chat history ⭐ NEW
+
+### 6. Inspection + Probes
+- **item** - Inspect held items or slots ⭐ NEW
+- **inventory** - List inventory contents ⭐ NEW
+- **block** - Probe targeted or specific blocks ⭐ NEW
+- **entity** - Probe targeted entities ⭐ NEW
+
+### 7. Automation
+- **macro** - Run JSON macro scripts ⭐ NEW
+
 ## Installation
 
 ### Fabric Mod
@@ -76,6 +89,15 @@ mccli analyze test.png
 
 # Get performance metrics
 mccli perf
+
+# Inspect held item
+mccli item --hand main
+
+# Probe targeted block
+mccli block --max-distance 5
+
+# Run a macro
+mccli macro ./macro.json
 ```
 
 ## JSON Protocol

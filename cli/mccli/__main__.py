@@ -18,6 +18,11 @@ Commands:
     perf            Get performance metrics
     logs            Get game logs
     execute         Run a Minecraft command
+    item            Inspect held item or inventory slot
+    inventory       List inventory contents
+    block           Probe targeted or specific block
+    entity          Probe targeted entity
+    macro           Run a JSON macro script
 """
 
 import argparse
@@ -139,6 +144,16 @@ def cmd_capture(args):
             else:
                 print(f"Screenshot saved: {data['path']}")
                 print(f"Size: {data['width']}x{data['height']}")
+                meta = data.get("metadata", {})
+                if meta:
+                    print("Metadata:")
+                    if meta.get("dimension"):
+                        print(f"  dimension: {meta.get('dimension')}")
+                    if meta.get("time") is not None:
+                        print(f"  time: {meta.get('time')}")
+                    if meta.get("shader"):
+                        shader = meta.get("shader", {})
+                        print(f"  shader: {shader.get('name')} (active={shader.get('active')})")
 
             return 0
     except Exception as e:
@@ -251,19 +266,56 @@ def cmd_logs(args):
     """Get game logs."""
     try:
         with Client(args.host, args.port) as mc:
-            logs = mc.logs(
-                level=args.level,
-                limit=args.limit,
-                filter=args.filter,
-                clear=args.clear
-            )
+            if args.follow:
+                last_id = args.since or 0
+                import time
+                import re
 
-            if args.json:
-                output({"logs": logs, "count": len(logs)}, True)
+                start = time.monotonic()
+                pattern = re.compile(args.until) if args.until else None
+
+                while True:
+                    resp = mc.logs(
+                        level=args.level,
+                        limit=args.limit,
+                        filter=args.filter,
+                        clear=args.clear,
+                        since=last_id,
+                        return_meta=True
+                    )
+                    logs = resp.get("logs", [])
+
+                    for log in logs:
+                        if args.json:
+                            output(log, True)
+                        else:
+                            level = log["level"].upper()
+                            print(f"[{level}] {log['logger']}: {log['message']}")
+
+                        if pattern and pattern.search(log.get("message", "")):
+                            return 0
+
+                    last_id = resp.get("last_id", last_id)
+
+                    if args.timeout is not None and (time.monotonic() - start) * 1000 > args.timeout:
+                        return 1
+
+                    time.sleep(args.interval / 1000.0)
             else:
-                for log in logs:
-                    level = log["level"].upper()
-                    print(f"[{level}] {log['logger']}: {log['message']}")
+                logs = mc.logs(
+                    level=args.level,
+                    limit=args.limit,
+                    filter=args.filter,
+                    clear=args.clear,
+                    since=args.since or 0
+                )
+
+                if args.json:
+                    output({"logs": logs, "count": len(logs)}, True)
+                else:
+                    for log in logs:
+                        level = log["level"].upper()
+                        print(f"[{level}] {log['logger']}: {log['message']}")
 
         return 0
     except Exception as e:
@@ -280,6 +332,131 @@ def cmd_execute(args):
                 output(data, True)
             else:
                 print(f"Executed: /{data['command']}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_item(args):
+    """Inspect items."""
+    try:
+        with Client(args.host, args.port) as mc:
+            include_nbt = not args.no_nbt
+            if args.slot is not None:
+                data = mc.item_slot(args.slot, include_nbt=include_nbt)
+            else:
+                data = mc.item_hand(args.hand, include_nbt=include_nbt)
+
+            if args.json:
+                output(data, True)
+            else:
+                item = data.get("item", {})
+                if item.get("empty"):
+                    print("No item")
+                else:
+                    print(f"{item.get('name')} ({item.get('id')}) x{item.get('count')}")
+                    if "custom_model_data" in item:
+                        print(f"CustomModelData: {item.get('custom_model_data')}")
+                    if "enchantments" in item:
+                        print("Enchantments:")
+                        for enchant in item.get("enchantments", []):
+                            print(f"  {enchant.get('id')} {enchant.get('level')}")
+                    if include_nbt and item.get("nbt"):
+                        print(f"NBT: {item.get('nbt')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_inventory(args):
+    """List inventory contents."""
+    try:
+        with Client(args.host, args.port) as mc:
+            data = mc.inventory_list(
+                section=args.section,
+                include_empty=args.include_empty,
+                include_nbt=args.include_nbt
+            )
+            if args.json:
+                output(data, True)
+            else:
+                for entry in data.get("items", []):
+                    slot = entry.get("slot")
+                    slot_type = entry.get("slot_type")
+                    item = entry.get("item", {})
+                    if item.get("empty"):
+                        print(f"[{slot_type} {slot}] (empty)")
+                    else:
+                        print(f"[{slot_type} {slot}] {item.get('name')} ({item.get('id')}) x{item.get('count')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_block(args):
+    """Probe a block."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.x is not None and args.y is not None and args.z is not None:
+                data = mc.block_at(args.x, args.y, args.z, include_nbt=args.include_nbt)
+            else:
+                data = mc.block_target(max_distance=args.max_distance, include_nbt=args.include_nbt)
+
+            if args.json:
+                output(data, True)
+            else:
+                if data.get("hit") is False:
+                    print("No block targeted")
+                else:
+                    pos = data.get("pos", {})
+                    print(f"{data.get('id')} at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}")
+                    if data.get("properties"):
+                        print(f"Properties: {data.get('properties')}")
+                    if args.include_nbt and data.get("block_entity"):
+                        print(f"BlockEntity: {data.get('block_entity')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_entity(args):
+    """Probe a targeted entity."""
+    try:
+        with Client(args.host, args.port) as mc:
+            data = mc.entity_target(max_distance=args.max_distance, include_nbt=args.include_nbt)
+
+            if args.json:
+                output(data, True)
+            else:
+                if data.get("hit") is False:
+                    print("No entity targeted")
+                else:
+                    pos = data.get("pos", {})
+                    print(f"{data.get('name')} ({data.get('id')}) at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}")
+                    if args.include_nbt and data.get("nbt"):
+                        print(f"NBT: {data.get('nbt')}")
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_macro(args):
+    """Run a JSON macro."""
+    try:
+        from .macro import run_macro
+
+        results = run_macro(args.file, args.host, args.port, args.json)
+        if args.json:
+            output(results, True)
+        else:
+            for step in results.get("steps", []):
+                status = "OK" if step.get("success") else "ERR"
+                print(f"[{status}] {step.get('index')}: {step.get('type')}")
         return 0
     except Exception as e:
         output({"error": str(e)}, args.json)
@@ -456,10 +633,44 @@ def main():
     logs_p.add_argument("--limit", type=int, default=50, help="Max entries")
     logs_p.add_argument("--filter", help="Regex filter pattern")
     logs_p.add_argument("--clear", action="store_true", help="Clear logs after returning")
+    logs_p.add_argument("--since", type=int, help="Only return entries with id > since")
+    logs_p.add_argument("--follow", action="store_true", help="Stream logs")
+    logs_p.add_argument("--interval", type=int, default=500, help="Polling interval for --follow (ms)")
+    logs_p.add_argument("--until", help="Regex to stop streaming when matched")
+    logs_p.add_argument("--timeout", type=int, help="Stop streaming after timeout (ms)")
 
     # execute
     exec_p = sub.add_parser("execute", help="Run a Minecraft command")
     exec_p.add_argument("cmd", metavar="command", help="Command to execute (without /)")
+
+    # item
+    item_p = sub.add_parser("item", help="Inspect held item or inventory slot")
+    item_p.add_argument("--hand", default="main", choices=["main", "off"], help="Which hand to inspect")
+    item_p.add_argument("--slot", type=int, help="Inventory slot index")
+    item_p.add_argument("--no-nbt", action="store_true", help="Exclude NBT from output")
+
+    # inventory
+    inv_p = sub.add_parser("inventory", help="List inventory contents")
+    inv_p.add_argument("--section", choices=["hotbar", "main", "armor", "offhand"], help="Inventory section")
+    inv_p.add_argument("--include-empty", action="store_true", help="Include empty slots")
+    inv_p.add_argument("--include-nbt", action="store_true", help="Include NBT for each item")
+
+    # block
+    block_p = sub.add_parser("block", help="Probe targeted or specific block")
+    block_p.add_argument("--x", type=int, help="Block X")
+    block_p.add_argument("--y", type=int, help="Block Y")
+    block_p.add_argument("--z", type=int, help="Block Z")
+    block_p.add_argument("--max-distance", type=float, default=5.0, help="Max raycast distance")
+    block_p.add_argument("--include-nbt", action="store_true", help="Include block entity NBT")
+
+    # entity
+    entity_p = sub.add_parser("entity", help="Probe targeted entity")
+    entity_p.add_argument("--max-distance", type=float, default=5.0, help="Max target distance")
+    entity_p.add_argument("--include-nbt", action="store_true", help="Include entity NBT")
+
+    # macro
+    macro_p = sub.add_parser("macro", help="Run a JSON macro")
+    macro_p.add_argument("file", help="Path to macro JSON (or - for stdin)")
 
     # resourcepack
     rp_p = sub.add_parser("resourcepack", help="Resource pack management")
@@ -493,6 +704,11 @@ def main():
         "perf": cmd_perf,
         "logs": cmd_logs,
         "execute": lambda a: cmd_execute(argparse.Namespace(**{**vars(a), "command": a.cmd})),
+        "item": cmd_item,
+        "inventory": cmd_inventory,
+        "block": cmd_block,
+        "entity": cmd_entity,
+        "macro": cmd_macro,
     }
 
     return commands[args.command](args)

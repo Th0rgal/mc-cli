@@ -1,15 +1,19 @@
 package dev.mccli.commands;
 
+import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.mccli.McCliMod;
+import dev.mccli.util.IrisHelper;
 import dev.mccli.util.MainThreadExecutor;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.ScreenshotRecorder;
+import net.minecraft.client.world.ClientWorld;
 import org.lwjgl.glfw.GLFW;
 
 import java.io.File;
+import java.time.Instant;
 import java.util.concurrent.CompletableFuture;
 
 /**
@@ -142,6 +146,7 @@ public class ScreenshotCommand implements Command {
                 result.addProperty("path", file.getAbsolutePath());
                 result.addProperty("width", image.getWidth());
                 result.addProperty("height", image.getHeight());
+                result.add("metadata", buildMetadata(client));
 
                 McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
                 return result;
@@ -149,5 +154,42 @@ public class ScreenshotCommand implements Command {
                 image.close();
             }
         });
+    }
+
+    private JsonObject buildMetadata(MinecraftClient client) {
+        JsonObject meta = new JsonObject();
+        meta.addProperty("timestamp", Instant.now().toString());
+
+        if (client.player != null) {
+            JsonObject player = new JsonObject();
+            player.addProperty("x", client.player.getX());
+            player.addProperty("y", client.player.getY());
+            player.addProperty("z", client.player.getZ());
+            player.addProperty("yaw", client.player.getYaw());
+            player.addProperty("pitch", client.player.getPitch());
+            meta.add("player", player);
+        }
+
+        ClientWorld world = client.world;
+        if (world != null) {
+            meta.addProperty("time", world.getTimeOfDay() % 24000);
+            meta.addProperty("dimension", world.getRegistryKey().getValue().toString());
+        }
+
+        meta.addProperty("iris_loaded", IrisHelper.isLoaded());
+        if (IrisHelper.isLoaded()) {
+            JsonObject shader = new JsonObject();
+            shader.addProperty("active", IrisHelper.areShadersEnabled());
+            shader.addProperty("name", IrisHelper.getCurrentPackName());
+            meta.add("shader", shader);
+        }
+
+        JsonArray packs = new JsonArray();
+        for (String packId : client.getResourcePackManager().getEnabledIds()) {
+            packs.add(packId);
+        }
+        meta.add("resource_packs", packs);
+
+        return meta;
     }
 }

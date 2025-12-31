@@ -41,6 +41,12 @@ public class CommandDispatcher {
         register(new PerfCommand());
         register(new LogsCommand());
 
+        // Inspection commands
+        register(new ItemCommand());
+        register(new InventoryCommand());
+        register(new BlockCommand());
+        register(new EntityCommand());
+
         McCliMod.LOGGER.info("Registered {} commands", commands.size());
     }
 

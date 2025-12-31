@@ -131,6 +131,70 @@ def develop_shader_iteration():
         }
 ```
 
+### Raw Command Access
+
+Use `Client.command` to send any protocol command directly (useful for macros):
+
+```python
+from mccli import Client
+
+with Client() as mc:
+    block = mc.command("block", {"action": "target", "max_distance": 6})
+    item = mc.command("item", {"action": "hand", "hand": "main"})
+```
+
+## Inspecting Items and Blocks
+
+Use structured probes to debug custom items, resource packs, and plugin outputs.
+
+```bash
+# Held item details (includes NBT by default)
+mccli item --hand main --json
+
+# Inventory snapshot
+mccli inventory --section hotbar --json
+
+# Targeted block and block entity data
+mccli block --include-nbt --json
+
+# Targeted entity data
+mccli entity --include-nbt --json
+```
+
+These commands return structured IDs, names, counts, and SNBT payloads that LLMs can
+parse and compare across iterations.
+
+## Log Streaming for Debugging
+
+Stream logs until a pattern appears:
+
+```bash
+mccli logs --follow --until "Exception" --timeout 10000
+```
+
+For incremental reads, use `--since` with the log entry ID.
+
+## JSON Macro Scripts
+
+Automate multi-step test flows using a JSON macro:
+
+```json
+{
+  "stop_on_error": true,
+  "steps": [
+    {"command": "time", "params": {"action": "set", "value": "noon"}},
+    {"wait_ms": 200},
+    {"command": "screenshot", "params": {"path": "/tmp/noon.png", "clean": true}},
+    {"local": "analyze", "path": "/tmp/noon.png"}
+  ]
+}
+```
+
+Run:
+```bash
+mccli macro ./macro.json --json
+```
+
 ## Metric Interpretation
 
 ### Brightness
