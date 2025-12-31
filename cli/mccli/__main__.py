@@ -23,6 +23,7 @@ Commands:
     block           Probe targeted or specific block
     entity          Probe targeted entity
     macro           Run a JSON macro script
+    server          Server connection (connect, disconnect, status)
 """
 
 from __future__ import annotations
@@ -587,6 +588,56 @@ def cmd_chat(args):
         return 1
 
 
+def cmd_server(args):
+    """Server connection management."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "connect":
+                if not args.address:
+                    print("Error: address required for 'connect' action")
+                    return 1
+                data = mc.server_connect(args.address, args.server_port)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print(f"Connecting to {data.get('address')}:{data.get('port')}...")
+                    else:
+                        print(f"Failed to connect: {data.get('error')}")
+
+            elif args.action == "disconnect":
+                data = mc.server_disconnect()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print("Disconnected from server")
+                    else:
+                        print(f"Failed to disconnect: {data.get('error')}")
+
+            elif args.action == "status":
+                data = mc.server_status()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("connected"):
+                        if data.get("multiplayer"):
+                            print(f"Connected to: {data.get('server_address')}")
+                            if data.get("server_name"):
+                                print(f"  Server name: {data.get('server_name')}")
+                            if data.get("player_count"):
+                                print(f"  Players: {data.get('player_count')}")
+                        else:
+                            print(f"In singleplayer world: {data.get('world_name', 'Unknown')}")
+                    else:
+                        print("Not connected to any server")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="MC-CLI: Minecraft Command-Line Interface for LLM-Assisted Shader Development",
@@ -696,6 +747,12 @@ def main():
     chat_p.add_argument("--type", choices=["chat", "system"], help="Filter by type")
     chat_p.add_argument("--filter", help="Regex filter pattern (for 'history')")
 
+    # server
+    server_p = sub.add_parser("server", help="Server connection management")
+    server_p.add_argument("action", choices=["connect", "disconnect", "status"])
+    server_p.add_argument("address", nargs="?", help="Server address (for 'connect')")
+    server_p.add_argument("--server-port", type=int, default=25565, help="Server port (default: 25565)")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -720,6 +777,7 @@ def main():
         "block": cmd_block,
         "entity": cmd_entity,
         "macro": cmd_macro,
+        "server": cmd_server,
     }
 
     return commands[args.command](args)

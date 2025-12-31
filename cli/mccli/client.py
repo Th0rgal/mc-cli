@@ -561,3 +561,53 @@ class Client:
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data.get("cleared", 0)
+
+    # =========================================================================
+    # Server Connection Commands
+    # =========================================================================
+
+    def server_connect(self, address: str, port: int = 25565) -> dict:
+        """
+        Connect to a multiplayer server.
+
+        Args:
+            address: Server address (hostname or IP)
+            port: Server port (default: 25565)
+
+        Returns:
+            dict with {success: bool, connecting: bool, address: str, port: int}
+        """
+        result = self._send("server", {"action": "connect", "address": address, "port": port})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def server_disconnect(self) -> dict:
+        """
+        Disconnect from current server/world.
+
+        Returns:
+            dict with {success: bool, disconnected: bool, was_multiplayer: bool}
+        """
+        result = self._send("server", {"action": "disconnect"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def server_status(self) -> dict:
+        """
+        Get current server connection status.
+
+        Returns:
+            dict with:
+            - connected: bool
+            - multiplayer: bool (if connected)
+            - server_name: str (if multiplayer)
+            - server_address: str (if multiplayer)
+            - player_count: int (if multiplayer)
+            - world_name: str (if singleplayer)
+        """
+        result = self._send("server", {"action": "status"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data

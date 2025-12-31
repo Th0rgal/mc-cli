@@ -286,6 +286,65 @@ Run Minecraft command.
 {"command": "execute", "params": {"command": "weather clear"}}
 ```
 
+### server
+
+Server connection management.
+
+**Request (connect):**
+```json
+{"command": "server", "params": {"action": "connect", "address": "play.example.com", "port": 25565}}
+```
+
+**Request (disconnect):**
+```json
+{"command": "server", "params": {"action": "disconnect"}}
+```
+
+**Request (status):**
+```json
+{"command": "server", "params": {"action": "status"}}
+```
+
+**Response (connect):**
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "connecting": true,
+    "address": "play.example.com",
+    "port": 25565
+  }
+}
+```
+
+**Response (disconnect):**
+```json
+{
+  "success": true,
+  "data": {
+    "success": true,
+    "disconnected": true,
+    "was_multiplayer": true,
+    "previous_world": "multiplayer"
+  }
+}
+```
+
+**Response (status):**
+```json
+{
+  "success": true,
+  "data": {
+    "connected": true,
+    "multiplayer": true,
+    "server_name": "Example Server",
+    "server_address": "play.example.com:25565",
+    "player_count": 12
+  }
+}
+```
+
 ### resourcepack
 
 Resource pack management.
@@ -295,9 +354,24 @@ Resource pack management.
 {"command": "resourcepack", "params": {"action": "list"}}
 ```
 
+**Request (enabled):**
+```json
+{"command": "resourcepack", "params": {"action": "enabled"}}
+```
+
 **Request (enable):**
 ```json
 {"command": "resourcepack", "params": {"action": "enable", "name": "MyPack"}}
+```
+
+**Request (disable):**
+```json
+{"command": "resourcepack", "params": {"action": "disable", "name": "MyPack"}}
+```
+
+**Request (reload):**
+```json
+{"command": "resourcepack", "params": {"action": "reload"}}
 ```
 
 ### chat

@@ -47,10 +47,10 @@ if data["has_errors"]:
 ### 4. Capture Test Screenshots
 
 ```bash
-mccli time noon
+mccli time set noon
 mccli capture -o /tmp/noon.png --clean --json
 
-mccli time sunset
+mccli time set sunset
 mccli capture -o /tmp/sunset.png --clean --json
 ```
 

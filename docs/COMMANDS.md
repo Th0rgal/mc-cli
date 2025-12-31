@@ -9,7 +9,7 @@ Complete reference for all MC-CLI commands.
 | `status` | Get game state |
 | `teleport x y z` | Move player |
 | `camera yaw pitch` | Set view direction |
-| `time [value]` | Get/set world time |
+| `time get\|set <value>` | Get/set world time |
 | `shader list\|get\|set\|reload\|errors\|disable` | Shader management |
 | `resourcepack list\|enabled\|enable\|disable\|reload` | Resource pack management |
 | `chat send\|history\|clear` | Chat messaging and history |
@@ -19,6 +19,7 @@ Complete reference for all MC-CLI commands.
 | `perf` | Performance metrics |
 | `logs [--level LEVEL]` | Get game logs |
 | `execute command` | Run Minecraft command |
+| `server connect\|disconnect\|status` | Server connection management |
 | `item [--hand main\|off] [--slot N]` | Inspect held item or slot |
 | `inventory [--section ...]` | List inventory contents |
 | `block [--x y z]` | Probe targeted or specific block |
@@ -113,13 +114,13 @@ Get or set world time.
 
 ```bash
 # Get current time
-mccli time
+mccli time get
 
 # Set time (ticks)
-mccli time 6000
+mccli time set 6000
 
 # Set time (named)
-mccli time noon
+mccli time set noon
 ```
 
 **Named Times:**
@@ -544,8 +545,7 @@ mccli perf --json
     "percent": 50.0
   },
   "chunk_updates": 256,
-  "entity_count": 42,
-  "gpu": "NVIDIA GeForce RTX 3080"
+  "entity_count": 42
 }
 ```
 
@@ -623,6 +623,61 @@ mccli execute "tp @p 0 100 0"
 {
   "executed": true,
   "command": "weather clear"
+}
+```
+
+---
+
+## server
+
+Manage multiplayer server connections.
+
+```bash
+# Connect to a server
+mccli server connect play.example.com
+mccli server connect play.example.com --server-port 25565
+
+# Disconnect from current server/world
+mccli server disconnect
+
+# Connection status
+mccli server status
+```
+
+**Arguments:**
+- `connect <address>` - server hostname or IP
+- `--server-port` - server port (default: 25565)
+- `disconnect` - leave current world
+- `status` - get current connection details
+
+**Response (connect):**
+```json
+{
+  "success": true,
+  "connecting": true,
+  "address": "play.example.com",
+  "port": 25565
+}
+```
+
+**Response (disconnect):**
+```json
+{
+  "success": true,
+  "disconnected": true,
+  "was_multiplayer": true,
+  "previous_world": "multiplayer"
+}
+```
+
+**Response (status):**
+```json
+{
+  "connected": true,
+  "multiplayer": true,
+  "server_name": "Example Server",
+  "server_address": "play.example.com:25565",
+  "player_count": 12
 }
 ```
 
@@ -833,10 +888,10 @@ mccli status
 mccli shader reload --json | jq '.has_errors'
 
 # If no errors, capture test screenshots
-mccli time noon
+mccli time set noon
 mccli capture -o captures/noon.png --clean
 
-mccli time sunset
+mccli time set sunset
 mccli capture -o captures/sunset.png --clean
 
 # Analyze results

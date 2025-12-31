@@ -15,7 +15,7 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
          ▼                                      ▼
 ┌─────────────────┐                    ┌─────────────────┐
 │  Screenshot     │                    │   Minecraft     │
-│  Analysis       │                    │   + Iris        │
+│  Analysis       │                    │ + Iris (opt.)   │
 └─────────────────┘                    └─────────────────┘
 ```
 
@@ -26,6 +26,7 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
 - **teleport** - Move player to coordinates
 - **camera** - Set view direction
 - **time** - Control world time
+- **server** - Connect/disconnect/status for multiplayer servers
 
 ### 2. Shader Development
 - **shader.list** - List available shader packs
@@ -60,7 +61,7 @@ MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screen
 ### Fabric Mod
 1. Build the mod: `cd mod && ./gradlew build`
 2. Copy `build/libs/mccli-*.jar` to your Minecraft mods folder
-3. Requires: Minecraft 1.21.1, Fabric Loader 0.16.9+, Iris
+3. Requires: Minecraft 1.21.1, Fabric Loader 0.16.9+. Iris is optional for shader features.
 
 ### Python CLI
 ```bash
@@ -191,7 +192,7 @@ mc-cli/
 └── docs/
     ├── COMMANDS.md
     ├── PROTOCOL.md
-    └── SHADER_DEBUGGING.md
+    └── LLM_INTEGRATION.md
 ```
 
 ## Design Philosophy
