@@ -99,6 +99,8 @@ public class ServerCommand implements Command {
                 result.addProperty("port", serverAddress.getPort());
                 result.addProperty("resourcepack_policy", resourcepackPolicy);
             } catch (Exception e) {
+                // Reset policy on failed connection to prevent stale policy affecting future UI connections
+                ServerResourcePackHandler.reset();
                 result.addProperty("success", false);
                 result.addProperty("error", "Failed to connect: " + e.getMessage());
             }
