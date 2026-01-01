@@ -19,7 +19,7 @@ public final class ServerResourcePackHandler {
         REJECT   // Auto-reject the resource pack
     }
 
-    private static Policy currentPolicy = Policy.PROMPT;
+    private static volatile Policy currentPolicy = Policy.PROMPT;
 
     /**
      * Set the resource pack policy for the next/current server connection.
