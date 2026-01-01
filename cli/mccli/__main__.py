@@ -22,6 +22,7 @@ Commands:
     inventory       List inventory contents
     block           Probe targeted or specific block
     entity          Probe targeted entity
+    interact        Player interactions (use, use_on_block, attack, drop, swap, select)
     macro           Run a JSON macro script
     server          Server connection (connect, disconnect, status)
 """
@@ -646,6 +647,98 @@ def cmd_server(args):
         return 1
 
 
+def cmd_interact(args):
+    """Player interaction commands."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "use":
+                data = mc.interact_use(hand=args.hand)
+                if args.json:
+                    output(data, True)
+                else:
+                    item = data.get("item", {})
+                    item_name = item.get("name", "empty") if not item.get("empty") else "nothing"
+                    print(f"Used {item_name}: {data.get('result')}")
+
+            elif args.action == "use_on_block":
+                x = args.x if hasattr(args, 'x') else None
+                y = args.y if hasattr(args, 'y') else None
+                z = args.z if hasattr(args, 'z') else None
+                data = mc.interact_use_on_block(
+                    hand=args.hand,
+                    x=x, y=y, z=z,
+                    face=args.face,
+                    inside_block=args.inside_block
+                )
+                if args.json:
+                    output(data, True)
+                else:
+                    item = data.get("item", {})
+                    item_name = item.get("name", "empty") if not item.get("empty") else "nothing"
+                    pos = data.get("block_pos", {})
+                    print(f"Used {item_name} on block at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}: {data.get('result')}")
+
+            elif args.action == "attack":
+                x = args.x if hasattr(args, 'x') else None
+                y = args.y if hasattr(args, 'y') else None
+                z = args.z if hasattr(args, 'z') else None
+                data = mc.interact_attack(
+                    target=args.target,
+                    x=x, y=y, z=z,
+                    face=args.face
+                )
+                if args.json:
+                    output(data, True)
+                else:
+                    if args.target == "block":
+                        pos = data.get("block_pos", {})
+                        print(f"Attacked block at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}: {data.get('result')}")
+                    else:
+                        print(f"Swing: {data.get('result')}")
+
+            elif args.action == "drop":
+                data = mc.interact_drop(slot=args.slot, all=args.all)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("dropped"):
+                        item = data.get("item", {})
+                        print(f"Dropped {data.get('count')}x {item.get('name', 'item')}")
+                    else:
+                        print(f"Could not drop: {data.get('reason', 'unknown')}")
+
+            elif args.action == "swap":
+                if args.from_slot is None or args.to_slot is None:
+                    print("Error: --from-slot and --to-slot required for 'swap' action")
+                    return 1
+                data = mc.interact_swap(args.from_slot, args.to_slot)
+                if args.json:
+                    output(data, True)
+                else:
+                    from_item = data.get("from_item", {})
+                    to_item = data.get("to_item", {})
+                    from_name = from_item.get("name", "empty") if not from_item.get("empty") else "empty"
+                    to_name = to_item.get("name", "empty") if not to_item.get("empty") else "empty"
+                    print(f"Swapped slot {args.from_slot} ({from_name}) with slot {args.to_slot} ({to_name})")
+
+            elif args.action == "select":
+                if args.hotbar_slot is None:
+                    print("Error: slot required for 'select' action")
+                    return 1
+                data = mc.interact_select(args.hotbar_slot)
+                if args.json:
+                    output(data, True)
+                else:
+                    item = data.get("item", {})
+                    item_name = item.get("name", "empty") if not item.get("empty") else "empty"
+                    print(f"Selected hotbar slot {data.get('slot')}: {item_name}")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="MC-CLI: Minecraft Command-Line Interface for LLM-Assisted Shader Development",
@@ -763,6 +856,27 @@ def main():
     server_p.add_argument("--resourcepack", choices=["prompt", "accept", "reject"], default="prompt",
                           help="Resource pack policy: prompt (default), accept, or reject")
 
+    # interact
+    interact_p = sub.add_parser("interact", help="Player interactions (use items, place blocks, etc.)")
+    interact_p.add_argument("action", choices=["use", "use_on_block", "attack", "drop", "swap", "select"],
+                            help="Interaction action")
+    interact_p.add_argument("--hand", default="main", choices=["main", "off"],
+                            help="Hand to use (default: main)")
+    interact_p.add_argument("--x", type=int, help="Block X coordinate")
+    interact_p.add_argument("--y", type=int, help="Block Y coordinate")
+    interact_p.add_argument("--z", type=int, help="Block Z coordinate")
+    interact_p.add_argument("--face", default="up", choices=["up", "down", "north", "south", "east", "west"],
+                            help="Block face to interact with (default: up)")
+    interact_p.add_argument("--inside-block", action="store_true",
+                            help="Click position inside block (for use_on_block)")
+    interact_p.add_argument("--target", default="air", choices=["air", "block"],
+                            help="Attack target type (default: air)")
+    interact_p.add_argument("--slot", type=int, help="Inventory slot for drop action")
+    interact_p.add_argument("--all", action="store_true", help="Drop entire stack")
+    interact_p.add_argument("--from-slot", type=int, dest="from_slot", help="Source slot for swap")
+    interact_p.add_argument("--to-slot", type=int, dest="to_slot", help="Destination slot for swap")
+    interact_p.add_argument("hotbar_slot", type=int, nargs="?", help="Hotbar slot (0-8) for select action")
+
     args = parser.parse_args()
 
     if not args.command:
@@ -786,6 +900,7 @@ def main():
         "inventory": cmd_inventory,
         "block": cmd_block,
         "entity": cmd_entity,
+        "interact": cmd_interact,
         "macro": cmd_macro,
         "server": cmd_server,
     }

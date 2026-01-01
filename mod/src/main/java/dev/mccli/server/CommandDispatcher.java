@@ -47,6 +47,9 @@ public class CommandDispatcher {
         register(new BlockCommand());
         register(new EntityCommand());
 
+        // Interaction commands
+        register(new InteractCommand());
+
         // Server connection commands
         register(new ServerCommand());
 

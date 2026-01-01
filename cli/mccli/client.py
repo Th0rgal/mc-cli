@@ -625,3 +625,114 @@ class Client:
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data
+
+    # =========================================================================
+    # Interaction Commands
+    # =========================================================================
+
+    def interact_use(self, hand: str = "main") -> dict:
+        """
+        Use item in hand (right-click in air).
+
+        Args:
+            hand: "main" or "off" (default: "main")
+
+        Returns:
+            dict with {result: str, item: dict}
+        """
+        return self.command("interact", {"action": "use", "hand": hand})
+
+    def interact_use_on_block(
+        self,
+        hand: str = "main",
+        x: Optional[int] = None,
+        y: Optional[int] = None,
+        z: Optional[int] = None,
+        face: str = "up",
+        inside_block: bool = False
+    ) -> dict:
+        """
+        Use item on a block (right-click on block).
+
+        Args:
+            hand: "main" or "off" (default: "main")
+            x, y, z: Target block position (optional, uses crosshair if not specified)
+            face: Block face to click on (default: "up")
+            inside_block: Whether click is inside the block (default: False)
+
+        Returns:
+            dict with {result: str, item: dict, block_pos: {x, y, z}}
+        """
+        params: dict[str, Any] = {"action": "use_on_block", "hand": hand, "face": face, "inside_block": inside_block}
+        if x is not None and y is not None and z is not None:
+            params["x"] = x
+            params["y"] = y
+            params["z"] = z
+        return self.command("interact", params)
+
+    def interact_attack(
+        self,
+        target: str = "air",
+        x: Optional[int] = None,
+        y: Optional[int] = None,
+        z: Optional[int] = None,
+        face: str = "up"
+    ) -> dict:
+        """
+        Attack / left-click action.
+
+        Args:
+            target: "block" or "air" (default: "air" - swings arm)
+            x, y, z: Block position for target="block" (optional)
+            face: Block face (default: "up")
+
+        Returns:
+            dict with {result: str, block_pos?: {x, y, z}}
+        """
+        params: dict[str, Any] = {"action": "attack", "target": target, "face": face}
+        if x is not None and y is not None and z is not None:
+            params["x"] = x
+            params["y"] = y
+            params["z"] = z
+        return self.command("interact", params)
+
+    def interact_drop(self, slot: Optional[int] = None, all: bool = False) -> dict:
+        """
+        Drop item(s) from inventory.
+
+        Args:
+            slot: Inventory slot to drop from (default: currently held slot)
+            all: Drop entire stack (default: False, drops single item)
+
+        Returns:
+            dict with {dropped: bool, item: dict, count: int}
+        """
+        params: dict[str, Any] = {"action": "drop", "all": all}
+        if slot is not None:
+            params["slot"] = slot
+        return self.command("interact", params)
+
+    def interact_swap(self, from_slot: int, to_slot: int) -> dict:
+        """
+        Swap items between slots.
+
+        Args:
+            from_slot: Source slot
+            to_slot: Destination slot
+
+        Returns:
+            dict with {success: bool, from_item: dict, to_item: dict}
+        """
+        return self.command("interact", {"action": "swap", "from_slot": from_slot, "to_slot": to_slot})
+
+    def interact_select(self, slot: int) -> dict:
+        """
+        Select hotbar slot.
+
+        Args:
+            slot: Hotbar slot (0-8)
+
+        Returns:
+            dict with {slot: int, item: dict}
+        """
+        return self.command("interact", {"action": "select", "slot": slot})

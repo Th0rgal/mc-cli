@@ -155,6 +155,14 @@ The mod listens on `localhost:25580` by default. The CLI connects automatically.
 - **block** - Probe targeted or specific blocks (with NBT)
 - **entity** - Probe targeted entities (with NBT)
 
+### Player Interactions
+- **interact use** - Use item in hand (right-click in air)
+- **interact use_on_block** - Use item on block (right-click on block, place blocks)
+- **interact attack** - Attack/left-click (swing or break block)
+- **interact drop** - Drop items from inventory
+- **interact swap** - Swap items between inventory slots
+- **interact select** - Select hotbar slot (0-8)
+
 ### Automation
 - **macro** - Run JSON macro scripts for automated workflows
 
@@ -184,6 +192,19 @@ mccli item --hand main
 
 # Probe targeted block
 mccli block --max-distance 5
+
+# Use item in hand (right-click)
+mccli interact use
+
+# Right-click on a specific block
+mccli interact use_on_block --x 10 --y 64 --z -20 --face up
+
+# Select hotbar slot and use item
+mccli interact select 2
+mccli interact use
+
+# Drop items from inventory
+mccli interact drop --slot 0 --all
 
 # Run a macro
 mccli macro ./macro.json
@@ -273,6 +294,32 @@ if status["data"]["in_game"] and status["data"]["world_type"] == "multiplayer":
     # Capture screenshot to verify custom textures loaded
     subprocess.run(["mccli", "capture", "-o", "/tmp/server_test.png"])
     print("Resource pack test complete - screenshot saved")
+```
+
+### Example: Testing Custom Block Placement Plugin
+
+```python
+import subprocess
+import json
+
+# Select the hotbar slot with a custom item
+subprocess.run(["mccli", "interact", "select", "0"])
+
+# Check what item is selected
+result = subprocess.run(["mccli", "item", "--hand", "main", "--json"], capture_output=True)
+item = json.loads(result.stdout)
+print(f"Selected: {item['data']['item']['name']}")
+
+# Right-click on a block to place/use the custom item
+subprocess.run(["mccli", "interact", "use_on_block", "--x", "10", "--y", "64", "--z", "-20", "--face", "up"])
+
+# Verify the block was placed
+result = subprocess.run(["mccli", "block", "--x", "10", "--y", "65", "--z", "-20", "--json"], capture_output=True)
+block = json.loads(result.stdout)
+print(f"Block placed: {block['data']['id']}")
+
+# Screenshot to verify custom block model/texture
+subprocess.run(["mccli", "capture", "--clean", "-o", "/tmp/custom_block.png"])
 ```
 
 ## Command Reference
