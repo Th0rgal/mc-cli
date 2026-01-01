@@ -126,9 +126,9 @@ public class ServerCommand implements Command {
 
             // Reset resource pack policy and loader state
             ServerResourcePackHandler.reset();
-            // Also reset the loader's acceptAll state to prevent it from persisting
-            ServerResourcePackLoader loader = client.getServerResourcePackLoader();
-            loader.onServerDisconnect();
+            // Also clear the loader state to prevent it from persisting
+            ServerResourcePackLoader loader = client.getServerResourcePackProvider();
+            loader.clear();
 
             result.addProperty("success", true);
             result.addProperty("disconnected", true);
