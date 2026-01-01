@@ -824,3 +824,69 @@ class Client:
             dict with {focus_grab_enabled: bool, screen_open: bool, screen_type?: str}
         """
         return self.command("window", {"action": "status"})
+
+    # =========================================================================
+    # World Commands
+    # =========================================================================
+
+    def world_list(self) -> list[dict]:
+        """
+        List all available singleplayer worlds.
+
+        Returns:
+            List of world info dicts with keys:
+            - name: str (folder name)
+            - display_name: str (user-friendly name)
+            - last_played: int (timestamp)
+            - game_mode: str
+            - hardcore: bool
+            - cheats: bool
+            - locked: bool
+            - requires_conversion: bool
+        """
+        result = self._send("world", {"action": "list"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("worlds", [])
+
+    def world_load(self, name: str) -> dict:
+        """
+        Load an existing singleplayer world.
+
+        Args:
+            name: World folder name or display name
+
+        Returns:
+            dict with {success: bool, name: str, display_name: str, loading: bool}
+        """
+        result = self._send("world", {"action": "load", "name": name})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def world_create(self) -> dict:
+        """
+        Open the world selection/creation screen.
+
+        Returns:
+            dict with {success: bool, screen_opened: bool}
+        """
+        result = self._send("world", {"action": "create"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def world_delete(self, name: str) -> dict:
+        """
+        Delete a singleplayer world.
+
+        Args:
+            name: World folder name or display name
+
+        Returns:
+            dict with {success: bool, name: str, display_name: str, deleted: bool}
+        """
+        result = self._send("world", {"action": "delete", "name": name})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data

@@ -801,6 +801,77 @@ def cmd_window(args):
         return 1
 
 
+def cmd_world(args):
+    """World management commands."""
+    try:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
+            if args.action == "list":
+                worlds = mc.world_list()
+                if args.json:
+                    output({"worlds": worlds, "count": len(worlds)}, True)
+                else:
+                    if not worlds:
+                        print("No worlds found")
+                    else:
+                        print(f"Found {len(worlds)} world(s):\n")
+                        for w in worlds:
+                            mode = w.get("game_mode", "unknown")
+                            flags = []
+                            if w.get("hardcore"):
+                                flags.append("hardcore")
+                            if w.get("cheats"):
+                                flags.append("cheats")
+                            if w.get("locked"):
+                                flags.append("locked")
+                            flags_str = f" [{', '.join(flags)}]" if flags else ""
+                            print(f"  {w.get('display_name')} ({w.get('name')})")
+                            print(f"    Mode: {mode}{flags_str}")
+
+            elif args.action == "load":
+                if not args.name:
+                    print("Error: --name required for 'load' action")
+                    return 1
+                data = mc.world_load(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print(f"Loading world: {data.get('display_name')}")
+                    else:
+                        print(f"Failed to load world: {data.get('error')}")
+
+            elif args.action == "create":
+                data = mc.world_create()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print("World selection screen opened")
+                        if data.get("note"):
+                            print(f"  {data.get('note')}")
+                    else:
+                        print(f"Failed to open screen: {data.get('error')}")
+
+            elif args.action == "delete":
+                if not args.name:
+                    print("Error: --name required for 'delete' action")
+                    return 1
+                data = mc.world_delete(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print(f"Deleted world: {data.get('display_name')}")
+                    else:
+                        print(f"Failed to delete world: {data.get('error')}")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
 def cmd_interact(args):
     """Player interaction commands."""
     try:
@@ -1024,6 +1095,12 @@ def main():
     window_p.add_argument("--enabled", type=lambda x: x.lower() in ('true', '1', 'yes'),
                           default=None, help="Enable/disable setting (true/false)")
 
+    # world
+    world_p = sub.add_parser("world", help="Singleplayer world management")
+    world_p.add_argument("action", choices=["list", "load", "create", "delete"],
+                         help="World action")
+    world_p.add_argument("--name", help="World name (folder name or display name)")
+
     # interact
     interact_p = sub.add_parser("interact", help="Player interactions (use items, place blocks, etc.)")
     interact_p.add_argument("action", choices=["use", "use_on_block", "attack", "drop", "swap", "select"],
@@ -1073,6 +1150,7 @@ def main():
         "macro": cmd_macro,
         "server": cmd_server,
         "window": cmd_window,
+        "world": cmd_world,
     }
 
     return commands[args.command](args)

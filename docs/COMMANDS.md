@@ -27,6 +27,7 @@ Complete reference for all MC-CLI commands.
 | `entity` | Probe targeted entity |
 | `interact use\|use_on_block\|attack\|drop\|swap\|select` | Player interactions |
 | `window focus_grab\|pause_on_lost_focus\|focus\|close_screen\|status` | Window management |
+| `world list\|load\|create\|delete` | Singleplayer world management |
 | `macro file.json` | Run a JSON macro script |
 
 ---
@@ -1141,6 +1142,101 @@ mccli window status
   "pause_on_lost_focus_enabled": true,
   "screen_open": false,
   "screen_type": null
+}
+```
+
+---
+
+## world
+
+Singleplayer world management for automated testing.
+
+### world list
+
+List all available singleplayer worlds.
+
+```bash
+mccli world list
+mccli world list --json
+```
+
+**Response:**
+```json
+{
+  "worlds": [
+    {
+      "name": "my_world",
+      "display_name": "My World",
+      "last_played": 1704067200000,
+      "game_mode": "survival",
+      "hardcore": false,
+      "cheats": true,
+      "locked": false,
+      "requires_conversion": false
+    }
+  ],
+  "count": 1
+}
+```
+
+### world load
+
+Load an existing singleplayer world.
+
+```bash
+mccli world load --name "My World"
+mccli world load --name my_world
+```
+
+**Arguments:**
+- `--name` - World folder name or display name (required)
+
+**Response:**
+```json
+{
+  "success": true,
+  "name": "my_world",
+  "display_name": "My World",
+  "loading": true
+}
+```
+
+### world create
+
+Open the world selection screen for creating new worlds.
+
+```bash
+mccli world create
+```
+
+**Response:**
+```json
+{
+  "success": true,
+  "screen_opened": true,
+  "note": "Select world screen opened. Use 'Create New World' button or select an existing world."
+}
+```
+
+### world delete
+
+Delete a singleplayer world.
+
+```bash
+mccli world delete --name "My World"
+mccli world delete --name my_world
+```
+
+**Arguments:**
+- `--name` - World folder name or display name (required)
+
+**Response:**
+```json
+{
+  "success": true,
+  "name": "my_world",
+  "display_name": "My World",
+  "deleted": true
 }
 ```
 
