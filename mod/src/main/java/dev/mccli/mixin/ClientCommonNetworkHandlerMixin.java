@@ -18,6 +18,9 @@ import java.util.UUID;
 
 /**
  * Mixin to intercept server resource pack prompts and auto-accept/reject based on policy.
+ *
+ * For auto-accept: Set the loader to accept mode so the default handler downloads without prompting.
+ * For auto-reject: Send decline status and cancel the handler.
  */
 @Mixin(ClientCommonNetworkHandler.class)
 public abstract class ClientCommonNetworkHandlerMixin {
@@ -38,14 +41,12 @@ public abstract class ClientCommonNetworkHandlerMixin {
 
         if (ServerResourcePackHandler.shouldAccept()) {
             McCliMod.LOGGER.info("Auto-accepting server resource pack: {} (required: {})", url, required);
-            // Send accepted status
-            sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.ACCEPTED));
-            // Trigger the download via the server resource pack loader
+            // Set the loader to accept all packs, then let the default handler proceed
+            // The default handler will check acceptAll and download without showing prompt
             MinecraftClient client = MinecraftClient.getInstance();
             ServerResourcePackLoader loader = client.getServerResourcePackLoader();
             loader.acceptAll();
-            // Cancel the default handler to prevent the prompt from showing
-            ci.cancel();
+            // Do NOT cancel - let the default handler download the pack
         } else {
             McCliMod.LOGGER.info("Auto-rejecting server resource pack: {} (required: {})", url, required);
             // Send declined status
