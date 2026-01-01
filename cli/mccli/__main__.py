@@ -5,7 +5,13 @@ MC-CLI: Minecraft Command-Line Interface
 Usage:
     mccli <command> [options]
 
+Multi-instance Support:
+    mccli instances                     List running MC-CLI instances
+    mccli --instance <name> status      Connect to a specific instance
+    mccli -i <port> status              Connect by port number
+
 Commands:
+    instances       List registered MC-CLI instances
     status          Check game connection and state
     shader          Shader management (list, get, set, reload, errors)
     resourcepack    Resource pack management (list, enabled, enable, disable, reload)
@@ -22,8 +28,10 @@ Commands:
     inventory       List inventory contents
     block           Probe targeted or specific block
     entity          Probe targeted entity
+    interact        Player interactions (use, use_on_block, attack, drop, swap, select)
     macro           Run a JSON macro script
     server          Server connection (connect, disconnect, status)
+    window          Window management (focus_grab, focus, close_screen, status)
 """
 
 from __future__ import annotations
@@ -35,6 +43,7 @@ from pathlib import Path
 
 from .client import Client
 from .analysis import analyze, compare, analyze_directory
+from .registry import list_instances, resolve_connection
 
 
 def output(data, as_json: bool):
@@ -58,10 +67,59 @@ def output(data, as_json: bool):
             print(data)
 
 
+def get_connection(args) -> tuple[str, int]:
+    """
+    Resolve connection parameters from args.
+
+    Uses instance registry if available, falls back to explicit host/port.
+    """
+    instance_name = getattr(args, "instance", None)
+    host = getattr(args, "host", None)
+    port = getattr(args, "port", None)
+
+    return resolve_connection(host=host, port=port, instance=instance_name)
+
+
+def cmd_instances(args):
+    """List registered MC-CLI instances."""
+    try:
+        instances = list_instances(include_dead=args.all)
+
+        if args.json:
+            output({
+                "instances": [
+                    {
+                        "name": i.name,
+                        "port": i.port,
+                        "pid": i.pid,
+                        "address": i.address,
+                        "alive": i.is_alive(),
+                    }
+                    for i in instances
+                ],
+                "count": len(instances),
+            }, True)
+        else:
+            if not instances:
+                print("No MC-CLI instances found.")
+                print("Make sure Minecraft is running with the MC-CLI mod.")
+            else:
+                print(f"MC-CLI instances ({len(instances)}):")
+                for i in instances:
+                    status = "" if i.is_alive() else " [dead]"
+                    print(f"  {i.name}: {i.address} (pid: {i.pid}){status}")
+
+        return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
 def cmd_status(args):
     """Check game status."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             data = mc.status()
             output(data, args.json)
             return 0
@@ -73,7 +131,8 @@ def cmd_status(args):
 def cmd_shader(args):
     """Shader management."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             if args.action == "list":
                 packs = mc.shader_list()
                 if args.json:
@@ -134,7 +193,8 @@ def cmd_capture(args):
         path = Path(args.output).absolute()
         path.parent.mkdir(parents=True, exist_ok=True)
 
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             data = mc.screenshot(
                 str(path),
                 clean=args.clean,
@@ -222,7 +282,8 @@ def cmd_compare(args):
 def cmd_teleport(args):
     """Teleport player."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             data = mc.teleport(args.x, args.y, args.z)
             if args.json:
                 output(data, True)
@@ -237,7 +298,8 @@ def cmd_teleport(args):
 def cmd_time(args):
     """Get or set time."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             # Default to "get" if no subcommand specified
             action = getattr(args, "time_action", None) or "get"
 
@@ -262,7 +324,8 @@ def cmd_time(args):
 def cmd_perf(args):
     """Get performance metrics."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             data = mc.perf()
             output(data, args.json)
         return 0
@@ -274,7 +337,8 @@ def cmd_perf(args):
 def cmd_logs(args):
     """Get game logs."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             if args.follow:
                 last_id = args.since or 0
                 import time
@@ -335,7 +399,8 @@ def cmd_logs(args):
 def cmd_execute(args):
     """Execute Minecraft command."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             data = mc.execute(args.command)
             if args.json:
                 output(data, True)
@@ -350,7 +415,8 @@ def cmd_execute(args):
 def cmd_item(args):
     """Inspect items."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             include_nbt = not args.no_nbt
             if args.slot is not None:
                 data = mc.item_slot(args.slot, include_nbt=include_nbt)
@@ -382,7 +448,8 @@ def cmd_item(args):
 def cmd_inventory(args):
     """List inventory contents."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             data = mc.inventory_list(
                 section=args.section,
                 include_empty=args.include_empty,
@@ -408,7 +475,8 @@ def cmd_inventory(args):
 def cmd_block(args):
     """Probe a block."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             if args.x is not None and args.y is not None and args.z is not None:
                 data = mc.block_at(args.x, args.y, args.z, include_nbt=args.include_nbt)
             else:
@@ -435,7 +503,8 @@ def cmd_block(args):
 def cmd_entity(args):
     """Probe a targeted entity."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             data = mc.entity_target(max_distance=args.max_distance, include_nbt=args.include_nbt)
 
             if args.json:
@@ -475,7 +544,8 @@ def cmd_macro(args):
 def cmd_resourcepack(args):
     """Resource pack management."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             if args.action == "list":
                 packs = mc.resourcepack_list()
                 if args.json:
@@ -546,7 +616,8 @@ def cmd_resourcepack(args):
 def cmd_chat(args):
     """Chat messaging."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             if args.action == "send":
                 if not args.message:
                     print("Error: --message required for 'send' action")
@@ -591,17 +662,26 @@ def cmd_chat(args):
 def cmd_server(args):
     """Server connection management."""
     try:
-        with Client(args.host, args.port) as mc:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
             if args.action == "connect":
                 if not args.address:
                     print("Error: address required for 'connect' action")
                     return 1
-                data = mc.server_connect(args.address, args.server_port)
+                data = mc.server_connect(
+                    args.address,
+                    args.server_port,
+                    resourcepack_policy=args.resourcepack
+                )
                 if args.json:
                     output(data, True)
                 else:
                     if data.get("success"):
-                        print(f"Connecting to {data.get('address')}:{data.get('port')}...")
+                        msg = f"Connecting to {data.get('address')}:{data.get('port')}..."
+                        policy = data.get("resourcepack_policy", "prompt")
+                        if policy != "prompt":
+                            msg += f" (resourcepack: {policy})"
+                        print(msg)
                     else:
                         print(f"Failed to connect: {data.get('error')}")
 
@@ -632,6 +712,253 @@ def cmd_server(args):
                     else:
                         print("Not connected to any server")
 
+            elif args.action == "connection_error":
+                data = mc.server_connection_error(clear=args.clear)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("has_error"):
+                        print(f"Connection error: {data.get('error')}")
+                        if data.get("server_address"):
+                            print(f"  Server: {data.get('server_address')}")
+                        if data.get("recent"):
+                            print("  (recent - within last 30 seconds)")
+                        if data.get("cleared"):
+                            print("  (error cleared)")
+                    else:
+                        print("No connection error recorded")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_window(args):
+    """Window management commands."""
+    try:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
+            if args.action == "focus_grab":
+                if args.enabled is None:
+                    print("Error: --enabled required for 'focus_grab' action")
+                    return 1
+                data = mc.window_focus_grab(args.enabled)
+                if args.json:
+                    output(data, True)
+                else:
+                    status = "enabled" if data.get("focus_grab_enabled") else "disabled"
+                    print(f"Window focus grab: {status}")
+
+            elif args.action == "pause_on_lost_focus":
+                if args.enabled is None:
+                    print("Error: --enabled required for 'pause_on_lost_focus' action")
+                    return 1
+                data = mc.window_pause_on_lost_focus(args.enabled)
+                if args.json:
+                    output(data, True)
+                else:
+                    status = "enabled" if data.get("pause_on_lost_focus_enabled") else "disabled"
+                    print(f"Pause on lost focus: {status}")
+
+            elif args.action == "focus":
+                data = mc.window_focus()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("focused"):
+                        print("Window focus requested")
+                    else:
+                        print("Focus request suppressed (focus grab disabled)")
+
+            elif args.action == "close_screen":
+                data = mc.window_close_screen()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("closed"):
+                        print(f"Closed screen: {data.get('screen_type')}")
+                    else:
+                        print(f"No screen to close: {data.get('reason', 'No screen open')}")
+
+            elif args.action == "status":
+                data = mc.window_status()
+                if args.json:
+                    output(data, True)
+                else:
+                    focus_status = "enabled" if data.get("focus_grab_enabled") else "disabled"
+                    pause_status = "enabled" if data.get("pause_on_lost_focus_enabled") else "disabled"
+                    print(f"Focus grab: {focus_status}")
+                    print(f"Pause on lost focus: {pause_status}")
+                    if data.get("screen_open"):
+                        print(f"Screen open: {data.get('screen_type')}")
+                    else:
+                        print("No screen open")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_world(args):
+    """World management commands."""
+    try:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
+            if args.action == "list":
+                worlds = mc.world_list()
+                if args.json:
+                    output({"worlds": worlds, "count": len(worlds)}, True)
+                else:
+                    if not worlds:
+                        print("No worlds found")
+                    else:
+                        print(f"Found {len(worlds)} world(s):\n")
+                        for w in worlds:
+                            mode = w.get("game_mode", "unknown")
+                            flags = []
+                            if w.get("hardcore"):
+                                flags.append("hardcore")
+                            if w.get("cheats"):
+                                flags.append("cheats")
+                            if w.get("locked"):
+                                flags.append("locked")
+                            flags_str = f" [{', '.join(flags)}]" if flags else ""
+                            print(f"  {w.get('display_name')} ({w.get('name')})")
+                            print(f"    Mode: {mode}{flags_str}")
+
+            elif args.action == "load":
+                if not args.name:
+                    print("Error: --name required for 'load' action")
+                    return 1
+                data = mc.world_load(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print(f"Loading world: {data.get('display_name')}")
+                    else:
+                        print(f"Failed to load world: {data.get('error')}")
+
+            elif args.action == "create":
+                data = mc.world_create()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print("World selection screen opened")
+                        if data.get("note"):
+                            print(f"  {data.get('note')}")
+                    else:
+                        print(f"Failed to open screen: {data.get('error')}")
+
+            elif args.action == "delete":
+                if not args.name:
+                    print("Error: --name required for 'delete' action")
+                    return 1
+                data = mc.world_delete(args.name)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print(f"Deleted world: {data.get('display_name')}")
+                    else:
+                        print(f"Failed to delete world: {data.get('error')}")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
+def cmd_interact(args):
+    """Player interaction commands."""
+    try:
+        host, port = get_connection(args)
+        with Client(host, port) as mc:
+            if args.action == "use":
+                data = mc.interact_use(hand=args.hand)
+                if args.json:
+                    output(data, True)
+                else:
+                    item = data.get("item", {})
+                    item_name = item.get("name", "empty") if not item.get("empty") else "nothing"
+                    print(f"Used {item_name}: {data.get('result')}")
+
+            elif args.action == "use_on_block":
+                x = args.x if hasattr(args, 'x') else None
+                y = args.y if hasattr(args, 'y') else None
+                z = args.z if hasattr(args, 'z') else None
+                data = mc.interact_use_on_block(
+                    hand=args.hand,
+                    x=x, y=y, z=z,
+                    face=args.face,
+                    inside_block=args.inside_block
+                )
+                if args.json:
+                    output(data, True)
+                else:
+                    item = data.get("item", {})
+                    item_name = item.get("name", "empty") if not item.get("empty") else "nothing"
+                    pos = data.get("block_pos", {})
+                    print(f"Used {item_name} on block at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}: {data.get('result')}")
+
+            elif args.action == "attack":
+                x = args.x if hasattr(args, 'x') else None
+                y = args.y if hasattr(args, 'y') else None
+                z = args.z if hasattr(args, 'z') else None
+                data = mc.interact_attack(
+                    target=args.target,
+                    x=x, y=y, z=z,
+                    face=args.face
+                )
+                if args.json:
+                    output(data, True)
+                else:
+                    if args.target == "block":
+                        pos = data.get("block_pos", {})
+                        print(f"Attacked block at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}: {data.get('result')}")
+                    else:
+                        print(f"Swing: {data.get('result')}")
+
+            elif args.action == "drop":
+                data = mc.interact_drop(slot=args.slot, all=args.all)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("dropped"):
+                        item = data.get("item", {})
+                        print(f"Dropped {data.get('count')}x {item.get('name', 'item')}")
+                    else:
+                        print(f"Could not drop: {data.get('reason', 'unknown')}")
+
+            elif args.action == "swap":
+                if args.from_slot is None or args.to_slot is None:
+                    print("Error: --from-slot and --to-slot required for 'swap' action")
+                    return 1
+                data = mc.interact_swap(args.from_slot, args.to_slot)
+                if args.json:
+                    output(data, True)
+                else:
+                    from_item = data.get("from_item", {})
+                    to_item = data.get("to_item", {})
+                    from_name = from_item.get("name", "empty") if not from_item.get("empty") else "empty"
+                    to_name = to_item.get("name", "empty") if not to_item.get("empty") else "empty"
+                    print(f"Swapped slot {args.from_slot} ({from_name}) with slot {args.to_slot} ({to_name})")
+
+            elif args.action == "select":
+                if args.hotbar_slot is None:
+                    print("Error: slot required for 'select' action")
+                    return 1
+                data = mc.interact_select(args.hotbar_slot)
+                if args.json:
+                    output(data, True)
+                else:
+                    item = data.get("item", {})
+                    item_name = item.get("name", "empty") if not item.get("empty") else "empty"
+                    print(f"Selected hotbar slot {data.get('slot')}: {item_name}")
+
             return 0
     except Exception as e:
         output({"error": str(e)}, args.json)
@@ -643,11 +970,16 @@ def main():
         description="MC-CLI: Minecraft Command-Line Interface for LLM-Assisted Shader Development",
         formatter_class=argparse.RawDescriptionHelpFormatter
     )
-    parser.add_argument("--host", default="localhost", help="MC-CLI host (default: localhost)")
-    parser.add_argument("--port", type=int, default=25580, help="MC-CLI port (default: 25580)")
+    parser.add_argument("--host", default=None, help="MC-CLI host (default: auto-detect or localhost)")
+    parser.add_argument("--port", type=int, default=None, help="MC-CLI port (default: auto-detect or 25580)")
+    parser.add_argument("--instance", "-i", help="Connect to named instance (name or port)")
     parser.add_argument("--json", action="store_true", help="Output as JSON")
 
     sub = parser.add_subparsers(dest="command", help="Commands")
+
+    # instances
+    instances_p = sub.add_parser("instances", help="List registered MC-CLI instances")
+    instances_p.add_argument("--all", "-a", action="store_true", help="Include dead instances")
 
     # status
     sub.add_parser("status", help="Check game status")
@@ -749,9 +1081,46 @@ def main():
 
     # server
     server_p = sub.add_parser("server", help="Server connection management")
-    server_p.add_argument("action", choices=["connect", "disconnect", "status"])
+    server_p.add_argument("action", choices=["connect", "disconnect", "status", "connection_error"])
     server_p.add_argument("address", nargs="?", help="Server address (for 'connect')")
     server_p.add_argument("--server-port", type=int, default=25565, help="Server port (default: 25565)")
+    server_p.add_argument("--resourcepack", choices=["prompt", "accept", "reject"], default="prompt",
+                          help="Resource pack policy: prompt (default), accept, or reject")
+    server_p.add_argument("--clear", action="store_true", help="Clear error after showing (for 'connection_error')")
+
+    # window
+    window_p = sub.add_parser("window", help="Window management (focus control for headless operation)")
+    window_p.add_argument("action", choices=["focus_grab", "pause_on_lost_focus", "focus", "close_screen", "status"],
+                          help="Window action")
+    window_p.add_argument("--enabled", type=lambda x: x.lower() in ('true', '1', 'yes'),
+                          default=None, help="Enable/disable setting (true/false)")
+
+    # world
+    world_p = sub.add_parser("world", help="Singleplayer world management")
+    world_p.add_argument("action", choices=["list", "load", "create", "delete"],
+                         help="World action")
+    world_p.add_argument("--name", help="World name (folder name or display name)")
+
+    # interact
+    interact_p = sub.add_parser("interact", help="Player interactions (use items, place blocks, etc.)")
+    interact_p.add_argument("action", choices=["use", "use_on_block", "attack", "drop", "swap", "select"],
+                            help="Interaction action")
+    interact_p.add_argument("--hand", default="main", choices=["main", "off"],
+                            help="Hand to use (default: main)")
+    interact_p.add_argument("--x", type=int, help="Block X coordinate")
+    interact_p.add_argument("--y", type=int, help="Block Y coordinate")
+    interact_p.add_argument("--z", type=int, help="Block Z coordinate")
+    interact_p.add_argument("--face", default="up", choices=["up", "down", "north", "south", "east", "west"],
+                            help="Block face to interact with (default: up)")
+    interact_p.add_argument("--inside-block", action="store_true",
+                            help="Click position inside block (for use_on_block)")
+    interact_p.add_argument("--target", default="air", choices=["air", "block"],
+                            help="Attack target type (default: air)")
+    interact_p.add_argument("--slot", type=int, help="Inventory slot for drop action")
+    interact_p.add_argument("--all", action="store_true", help="Drop entire stack")
+    interact_p.add_argument("--from-slot", type=int, dest="from_slot", help="Source slot for swap")
+    interact_p.add_argument("--to-slot", type=int, dest="to_slot", help="Destination slot for swap")
+    interact_p.add_argument("hotbar_slot", type=int, nargs="?", help="Hotbar slot (0-8) for select action")
 
     args = parser.parse_args()
 
@@ -760,6 +1129,7 @@ def main():
         return 1
 
     commands = {
+        "instances": cmd_instances,
         "status": cmd_status,
         "shader": cmd_shader,
         "resourcepack": cmd_resourcepack,
@@ -776,8 +1146,11 @@ def main():
         "inventory": cmd_inventory,
         "block": cmd_block,
         "entity": cmd_entity,
+        "interact": cmd_interact,
         "macro": cmd_macro,
         "server": cmd_server,
+        "window": cmd_window,
+        "world": cmd_world,
     }
 
     return commands[args.command](args)

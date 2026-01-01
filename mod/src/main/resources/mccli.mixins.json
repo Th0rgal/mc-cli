@@ -3,7 +3,11 @@
   "package": "dev.mccli.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ChatHudMixin"
+    "ChatHudMixin",
+    "ClientCommonNetworkHandlerMixin",
+    "DisconnectedScreenMixin",
+    "MouseMixin",
+    "WindowMixin"
   ],
   "injectors": {
     "defaultRequire": 1

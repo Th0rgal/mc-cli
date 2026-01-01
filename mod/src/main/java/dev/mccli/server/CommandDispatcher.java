@@ -47,8 +47,17 @@ public class CommandDispatcher {
         register(new BlockCommand());
         register(new EntityCommand());
 
+        // Interaction commands
+        register(new InteractCommand());
+
         // Server connection commands
         register(new ServerCommand());
+
+        // Window management commands
+        register(new WindowCommand());
+
+        // World management commands
+        register(new WorldCommand());
 
         McCliMod.LOGGER.info("Registered {} commands", commands.size());
     }

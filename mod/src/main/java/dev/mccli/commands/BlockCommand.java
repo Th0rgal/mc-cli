@@ -106,10 +106,15 @@ public class BlockCommand implements Command {
             BlockEntity blockEntity = world.getBlockEntity(pos);
             if (blockEntity != null) {
                 JsonObject be = new JsonObject();
-                be.addProperty("id", Registries.BLOCK_ENTITY_TYPE.getId(blockEntity.getType()).toString());
+                var blockEntityTypeId = Registries.BLOCK_ENTITY_TYPE.getId(blockEntity.getType());
+                be.addProperty("id", blockEntityTypeId != null ? blockEntityTypeId.toString() : "unknown");
                 if (includeNbt) {
-                    NbtCompound nbt = blockEntity.createNbtWithIdentifyingData(world.getRegistryManager());
-                    be.addProperty("nbt", nbt.toString());
+                    try {
+                        NbtCompound nbt = blockEntity.createNbtWithIdentifyingData(world.getRegistryManager());
+                        be.addProperty("nbt", nbt.toString());
+                    } catch (Exception e) {
+                        be.addProperty("nbt_error", e.getMessage());
+                    }
                 }
                 result.add("block_entity", be);
             }

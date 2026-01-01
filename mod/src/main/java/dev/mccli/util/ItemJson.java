@@ -36,10 +36,14 @@ public final class ItemJson {
             item.addProperty("durability", stack.getMaxDamage() - stack.getDamage());
         }
 
-        // Custom model data (1.21+ uses components)
+        // Custom model data (1.21.4+ uses floats/flags/strings/colors instead of single value)
         CustomModelDataComponent customModelData = stack.get(DataComponentTypes.CUSTOM_MODEL_DATA);
         if (customModelData != null) {
-            item.addProperty("custom_model_data", customModelData.value());
+            // Get first float value if available (common use case)
+            Float firstFloat = customModelData.getFloat(0);
+            if (firstFloat != null) {
+                item.addProperty("custom_model_data", firstFloat.intValue());
+            }
         }
 
         // Include full component string if requested
@@ -53,7 +57,11 @@ public final class ItemJson {
             JsonArray enchantmentsArray = new JsonArray();
             for (RegistryEntry<Enchantment> entry : enchantments.getEnchantments()) {
                 JsonObject enchant = new JsonObject();
-                enchant.addProperty("id", entry.getIdAsString());
+                // Handle both Reference (has ID) and Direct (no ID) registry entries
+                String enchantId = entry.getKey()
+                    .map(key -> key.getValue().toString())
+                    .orElse("unknown");
+                enchant.addProperty("id", enchantId);
                 enchant.addProperty("level", enchantments.getLevel(entry));
                 enchantmentsArray.add(enchant);
             }

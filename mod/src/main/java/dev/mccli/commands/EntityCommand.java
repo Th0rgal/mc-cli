@@ -6,7 +6,6 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.world.ClientWorld;
 import net.minecraft.entity.Entity;
-import net.minecraft.nbt.NbtCompound;
 import net.minecraft.registry.Registries;
 import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
@@ -67,8 +66,9 @@ public class EntityCommand implements Command {
 
             EntityHitResult entityHit = (EntityHitResult) hit;
             Entity entity = entityHit.getEntity();
-            Vec3d playerPos = player.getPos();
-            Vec3d entityPos = entity.getPos();
+            // 1.21.11 uses getSyncedPos() instead of getPos()
+            Vec3d playerPos = player.getSyncedPos();
+            Vec3d entityPos = entity.getSyncedPos();
 
             if (playerPos.distanceTo(entityPos) > maxDistance) {
                 JsonObject miss = new JsonObject();
@@ -89,9 +89,9 @@ public class EntityCommand implements Command {
             result.add("pos", pos);
 
             if (includeNbt) {
-                NbtCompound nbt = new NbtCompound();
-                entity.writeNbt(nbt);
-                result.addProperty("nbt", nbt.toString());
+                // Note: Full NBT export not available on client side in 1.21.11
+                // Provide basic entity info instead
+                result.addProperty("nbt_error", "Entity NBT not available on client side in 1.21.11+");
             }
 
             return result;

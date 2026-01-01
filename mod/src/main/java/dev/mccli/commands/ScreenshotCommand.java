@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import dev.mccli.McCliMod;
 import dev.mccli.util.IrisHelper;
 import dev.mccli.util.MainThreadExecutor;
+import dev.mccli.util.WindowFocusManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.texture.NativeImage;
@@ -78,10 +79,9 @@ public class ScreenshotCommand implements Command {
                             client.options.pauseOnLostFocus
                         };
 
-                        // Focus window
+                        // Focus window (respects WindowFocusManager setting)
                         long handle = client.getWindow().getHandle();
-                        GLFW.glfwShowWindow(handle);
-                        GLFW.glfwFocusWindow(handle);
+                        WindowFocusManager.showWindow(handle);
 
                         // Hide HUD and disable pause
                         client.options.hudHidden = true;
@@ -128,37 +128,44 @@ public class ScreenshotCommand implements Command {
     }
 
     private CompletableFuture<JsonObject> takeScreenshot(String path) {
-        return MainThreadExecutor.submit(() -> {
-            MinecraftClient client = MinecraftClient.getInstance();
-            Framebuffer framebuffer = client.getFramebuffer();
+        CompletableFuture<JsonObject> future = new CompletableFuture<>();
 
-            NativeImage image = ScreenshotRecorder.takeScreenshot(framebuffer);
-
+        MainThreadExecutor.submitVoid(() -> {
             try {
-                File file = new File(path);
-                File parentDir = file.getParentFile();
-                if (parentDir != null && !parentDir.exists()) {
-                    parentDir.mkdirs();
-                }
+                MinecraftClient client = MinecraftClient.getInstance();
+                Framebuffer framebuffer = client.getFramebuffer();
 
-                try {
-                    image.writeTo(file);
-                } catch (IOException e) {
-                    throw new RuntimeException("Failed to write screenshot to " + path, e);
-                }
+                // 1.21.11 uses async callback pattern for takeScreenshot
+                ScreenshotRecorder.takeScreenshot(framebuffer, image -> {
+                    try {
+                        File file = new File(path);
+                        File parentDir = file.getParentFile();
+                        if (parentDir != null && !parentDir.exists()) {
+                            parentDir.mkdirs();
+                        }
 
-                JsonObject result = new JsonObject();
-                result.addProperty("path", file.getAbsolutePath());
-                result.addProperty("width", image.getWidth());
-                result.addProperty("height", image.getHeight());
-                result.add("metadata", buildMetadata(client));
+                        image.writeTo(file);
 
-                McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
-                return result;
-            } finally {
-                image.close();
+                        JsonObject result = new JsonObject();
+                        result.addProperty("path", file.getAbsolutePath());
+                        result.addProperty("width", image.getWidth());
+                        result.addProperty("height", image.getHeight());
+                        result.add("metadata", buildMetadata(client));
+
+                        McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
+                        future.complete(result);
+                    } catch (Exception e) {
+                        future.completeExceptionally(new RuntimeException("Failed to process screenshot", e));
+                    } finally {
+                        image.close();
+                    }
+                });
+            } catch (Exception e) {
+                future.completeExceptionally(new RuntimeException("Failed to take screenshot", e));
             }
         });
+
+        return future;
     }
 
     private JsonObject buildMetadata(MinecraftClient client) {

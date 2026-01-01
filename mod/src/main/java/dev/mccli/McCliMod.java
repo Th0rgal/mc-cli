@@ -54,7 +54,7 @@ public class McCliMod implements ClientModInitializer {
         // Install log capture appender
         installLogCapture();
 
-        // Start TCP server
+        // Start TCP server with dynamic port allocation
         server = new SocketServer(DEFAULT_PORT);
         server.start();
 
@@ -66,7 +66,8 @@ public class McCliMod implements ClientModInitializer {
             uninstallLogCapture();
         }));
 
-        LOGGER.info("MC-CLI ready on port {}", DEFAULT_PORT);
+        // Note: Actual bound port is logged by SocketServer after binding
+        LOGGER.info("MC-CLI initialized (base port: {})", DEFAULT_PORT);
     }
 
     private void installLogCapture() {

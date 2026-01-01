@@ -566,18 +566,32 @@ class Client:
     # Server Connection Commands
     # =========================================================================
 
-    def server_connect(self, address: str, port: int = 25565) -> dict:
+    def server_connect(
+        self,
+        address: str,
+        port: int = 25565,
+        resourcepack_policy: str = "prompt"
+    ) -> dict:
         """
         Connect to a multiplayer server.
 
         Args:
             address: Server address (hostname or IP)
             port: Server port (default: 25565)
+            resourcepack_policy: How to handle server resource packs:
+                - "prompt" (default): Show normal prompt to user
+                - "accept": Automatically accept and download
+                - "reject": Automatically decline
 
         Returns:
-            dict with {success: bool, connecting: bool, address: str, port: int}
+            dict with {success: bool, connecting: bool, address: str, port: int, resourcepack_policy: str}
         """
-        result = self._send("server", {"action": "connect", "address": address, "port": port})
+        result = self._send("server", {
+            "action": "connect",
+            "address": address,
+            "port": port,
+            "resourcepack_policy": resourcepack_policy
+        })
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data
@@ -608,6 +622,271 @@ class Client:
             - world_name: str (if singleplayer)
         """
         result = self._send("server", {"action": "status"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def server_connection_error(self, clear: bool = False) -> dict:
+        """
+        Get the last connection/disconnection error.
+
+        This captures errors shown on the DisconnectedScreen, such as:
+        - Invalid session (requires restart)
+        - Server is full
+        - You are banned
+        - Connection timed out
+
+        Args:
+            clear: Clear the error after returning (default: False)
+
+        Returns:
+            dict with:
+            - has_error: bool
+            - error: str (the error message, if has_error)
+            - timestamp: int (unix timestamp in ms, if has_error)
+            - recent: bool (true if error is < 30 seconds old)
+            - server_address: str (if known)
+            - cleared: bool (if clear was requested)
+        """
+        result = self._send("server", {"action": "connection_error", "clear": clear})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    # =========================================================================
+    # Interaction Commands
+    # =========================================================================
+
+    def interact_use(self, hand: str = "main") -> dict:
+        """
+        Use item in hand (right-click in air).
+
+        Args:
+            hand: "main" or "off" (default: "main")
+
+        Returns:
+            dict with {result: str, item: dict}
+        """
+        return self.command("interact", {"action": "use", "hand": hand})
+
+    def interact_use_on_block(
+        self,
+        hand: str = "main",
+        x: Optional[int] = None,
+        y: Optional[int] = None,
+        z: Optional[int] = None,
+        face: str = "up",
+        inside_block: bool = False
+    ) -> dict:
+        """
+        Use item on a block (right-click on block).
+
+        Args:
+            hand: "main" or "off" (default: "main")
+            x, y, z: Target block position (optional, uses crosshair if not specified)
+            face: Block face to click on (default: "up")
+            inside_block: Whether click is inside the block (default: False)
+
+        Returns:
+            dict with {result: str, item: dict, block_pos: {x, y, z}}
+        """
+        params: dict[str, Any] = {"action": "use_on_block", "hand": hand, "face": face, "inside_block": inside_block}
+        if x is not None and y is not None and z is not None:
+            params["x"] = x
+            params["y"] = y
+            params["z"] = z
+        return self.command("interact", params)
+
+    def interact_attack(
+        self,
+        target: str = "air",
+        x: Optional[int] = None,
+        y: Optional[int] = None,
+        z: Optional[int] = None,
+        face: str = "up"
+    ) -> dict:
+        """
+        Attack / left-click action.
+
+        Args:
+            target: "block" or "air" (default: "air" - swings arm)
+            x, y, z: Block position for target="block" (optional)
+            face: Block face (default: "up")
+
+        Returns:
+            dict with {result: str, block_pos?: {x, y, z}}
+        """
+        params: dict[str, Any] = {"action": "attack", "target": target, "face": face}
+        if x is not None and y is not None and z is not None:
+            params["x"] = x
+            params["y"] = y
+            params["z"] = z
+        return self.command("interact", params)
+
+    def interact_drop(self, slot: Optional[int] = None, all: bool = False) -> dict:
+        """
+        Drop item(s) from inventory.
+
+        Args:
+            slot: Inventory slot to drop from (default: currently held slot)
+            all: Drop entire stack (default: False, drops single item)
+
+        Returns:
+            dict with {dropped: bool, item: dict, count: int}
+        """
+        params: dict[str, Any] = {"action": "drop", "all": all}
+        if slot is not None:
+            params["slot"] = slot
+        return self.command("interact", params)
+
+    def interact_swap(self, from_slot: int, to_slot: int) -> dict:
+        """
+        Swap items between slots.
+
+        Args:
+            from_slot: Source slot
+            to_slot: Destination slot
+
+        Returns:
+            dict with {success: bool, from_item: dict, to_item: dict}
+        """
+        return self.command("interact", {"action": "swap", "from_slot": from_slot, "to_slot": to_slot})
+
+    def interact_select(self, slot: int) -> dict:
+        """
+        Select hotbar slot.
+
+        Args:
+            slot: Hotbar slot (0-8)
+
+        Returns:
+            dict with {slot: int, item: dict}
+        """
+        return self.command("interact", {"action": "select", "slot": slot})
+
+    # =========================================================================
+    # Window Commands
+    # =========================================================================
+
+    def window_focus_grab(self, enabled: bool) -> dict:
+        """
+        Enable or disable window focus grabbing.
+
+        When disabled, Minecraft will not steal focus from other applications.
+        Essential for automated/background testing.
+
+        Args:
+            enabled: True to allow focus grabs, False to suppress them
+
+        Returns:
+            dict with {focus_grab_enabled: bool}
+        """
+        return self.command("window", {"action": "focus_grab", "enabled": enabled})
+
+    def window_pause_on_lost_focus(self, enabled: bool) -> dict:
+        """
+        Enable or disable pause-on-lost-focus behavior.
+
+        When disabled, the pause menu won't appear when the window loses focus,
+        allowing screenshots and commands to work in the background.
+
+        Args:
+            enabled: True to show pause menu on focus loss, False to disable it
+
+        Returns:
+            dict with {pause_on_lost_focus_enabled: bool}
+        """
+        return self.command("window", {"action": "pause_on_lost_focus", "enabled": enabled})
+
+    def window_focus(self) -> dict:
+        """
+        Manually request window focus.
+
+        Returns:
+            dict with {focused: bool}
+        """
+        return self.command("window", {"action": "focus"})
+
+    def window_close_screen(self) -> dict:
+        """
+        Close any currently open GUI screen.
+
+        Returns:
+            dict with {closed: bool, screen_type?: str}
+        """
+        return self.command("window", {"action": "close_screen"})
+
+    def window_status(self) -> dict:
+        """
+        Get current window/focus status.
+
+        Returns:
+            dict with {focus_grab_enabled: bool, screen_open: bool, screen_type?: str}
+        """
+        return self.command("window", {"action": "status"})
+
+    # =========================================================================
+    # World Commands
+    # =========================================================================
+
+    def world_list(self) -> list[dict]:
+        """
+        List all available singleplayer worlds.
+
+        Returns:
+            List of world info dicts with keys:
+            - name: str (folder name)
+            - display_name: str (user-friendly name)
+            - last_played: int (timestamp)
+            - game_mode: str
+            - hardcore: bool
+            - cheats: bool
+            - locked: bool
+            - requires_conversion: bool
+        """
+        result = self._send("world", {"action": "list"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data.get("worlds", [])
+
+    def world_load(self, name: str) -> dict:
+        """
+        Load an existing singleplayer world.
+
+        Args:
+            name: World folder name or display name
+
+        Returns:
+            dict with {success: bool, name: str, display_name: str, loading: bool}
+        """
+        result = self._send("world", {"action": "load", "name": name})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def world_create(self) -> dict:
+        """
+        Open the world selection/creation screen.
+
+        Returns:
+            dict with {success: bool, screen_opened: bool}
+        """
+        result = self._send("world", {"action": "create"})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
+    def world_delete(self, name: str) -> dict:
+        """
+        Delete a singleplayer world.
+
+        Args:
+            name: World folder name or display name
+
+        Returns:
+            dict with {success: bool, name: str, display_name: str, deleted: bool}
+        """
+        result = self._send("world", {"action": "delete", "name": name})
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data
