@@ -28,7 +28,7 @@ jobs:
 
       - name: Build mod
         working-directory: mod
-        run: ./gradlew build
+        run: gradle build
 
       - name: Get version from tag
         id: version
