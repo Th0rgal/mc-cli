@@ -55,7 +55,7 @@ public abstract class ClientCommonNetworkHandlerMixin {
                 // Directly add the resource pack for download, bypassing the confirmation screen
                 MinecraftClient client = MinecraftClient.getInstance();
                 ServerResourcePackLoader loader = client.getServerResourcePackLoader();
-                loader.addResourcePack(packId, url, hash.isEmpty() ? null : hash);
+                loader.addResourcePack(packId, url, (hash == null || hash.isEmpty()) ? null : hash);
 
                 McCliMod.LOGGER.info("Resource pack download initiated for: {}", urlString);
             } catch (Exception e) {
