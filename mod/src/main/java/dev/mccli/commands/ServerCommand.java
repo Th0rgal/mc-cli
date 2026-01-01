@@ -9,6 +9,7 @@ import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.client.network.ServerResourcePackLoader;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -123,8 +124,11 @@ public class ServerCommand implements Command {
             // Disconnect and return to title screen (1.21.11 requires a Screen parameter)
             client.disconnect(new TitleScreen(), false);
 
-            // Reset resource pack policy
+            // Reset resource pack policy and loader state
             ServerResourcePackHandler.reset();
+            // Also reset the loader's acceptAll state to prevent it from persisting
+            ServerResourcePackLoader loader = client.getServerResourcePackLoader();
+            loader.onServerDisconnect();
 
             result.addProperty("success", true);
             result.addProperty("disconnected", true);

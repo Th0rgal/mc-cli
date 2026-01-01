@@ -144,12 +144,7 @@ public class ScreenshotCommand implements Command {
                             parentDir.mkdirs();
                         }
 
-                        try {
-                            image.writeTo(file);
-                        } catch (IOException e) {
-                            future.completeExceptionally(new RuntimeException("Failed to write screenshot to " + path, e));
-                            return;
-                        }
+                        image.writeTo(file);
 
                         JsonObject result = new JsonObject();
                         result.addProperty("path", file.getAbsolutePath());
@@ -159,6 +154,8 @@ public class ScreenshotCommand implements Command {
 
                         McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
                         future.complete(result);
+                    } catch (Exception e) {
+                        future.completeExceptionally(new RuntimeException("Failed to process screenshot", e));
                     } finally {
                         image.close();
                     }
