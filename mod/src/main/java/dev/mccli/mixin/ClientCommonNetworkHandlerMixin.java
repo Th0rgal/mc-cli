@@ -20,8 +20,7 @@ import java.util.UUID;
 /**
  * Mixin to intercept server resource pack prompts and auto-accept/reject based on policy.
  *
- * For auto-accept: Directly trigger the download via ServerResourcePackLoader.addResourcePack()
- *                  to bypass the confirmation screen entirely.
+ * For auto-accept: Cancel the default handler, call acceptAll() then add the pack.
  * For auto-reject: Send decline status and cancel the handler.
  */
 @Mixin(ClientCommonNetworkHandler.class)
@@ -45,26 +44,32 @@ public abstract class ClientCommonNetworkHandlerMixin {
         if (ServerResourcePackHandler.shouldAccept()) {
             McCliMod.LOGGER.info("Auto-accepting server resource pack: {} (required: {})", urlString, required);
 
-            try {
-                // Parse the URL
-                URL url = new URL(urlString);
+            MinecraftClient client = MinecraftClient.getInstance();
 
-                // Send ACCEPTED status to server
-                sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.ACCEPTED));
+            // Schedule on the main thread to ensure proper initialization
+            client.execute(() -> {
+                try {
+                    ServerResourcePackLoader loader = client.getServerResourcePackProvider();
 
-                // Directly add the resource pack for download, bypassing the confirmation screen
-                MinecraftClient client = MinecraftClient.getInstance();
-                ServerResourcePackLoader loader = client.getServerResourcePackProvider();
-                loader.addResourcePack(packId, url, (hash == null || hash.isEmpty()) ? null : hash);
+                    // Call acceptAll first to set the acceptance state
+                    loader.acceptAll();
 
-                McCliMod.LOGGER.info("Resource pack download initiated for: {}", urlString);
-            } catch (Exception e) {
-                McCliMod.LOGGER.error("Failed to auto-accept resource pack: {}", e.getMessage());
-                // Send failed status if we couldn't initiate the download
-                sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.FAILED_DOWNLOAD));
-            }
+                    // Parse and add the resource pack
+                    URL url = new URL(urlString);
+                    String hashToUse = (hash == null || hash.isEmpty()) ? null : hash;
+                    loader.addResourcePack(packId, url, hashToUse);
 
-            // Cancel the default handling to prevent the confirmation screen
+                    // Send ACCEPTED status to server
+                    sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.ACCEPTED));
+
+                    McCliMod.LOGGER.info("Resource pack added for download: {}", urlString);
+                } catch (Exception e) {
+                    McCliMod.LOGGER.error("Failed to auto-accept resource pack: {}", e.getMessage(), e);
+                    sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.FAILED_DOWNLOAD));
+                }
+            });
+
+            // Cancel default handling to prevent confirmation screen
             ci.cancel();
         } else {
             McCliMod.LOGGER.info("Auto-rejecting server resource pack: {} (required: {})", urlString, required);

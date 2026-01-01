@@ -1,35 +1,91 @@
 # MC-CLI
 
-**Minecraft Command-Line Interface for LLM-Assisted Shader Development**
+**Minecraft Command-Line Interface for LLM-Assisted Development & Automated Testing**
 
-MC-CLI is a tool that enables AI/LLM agents to control Minecraft, capture screenshots, and debug shaders programmatically. It provides structured JSON output optimized for machine consumption.
+MC-CLI is a tool that enables AI/LLM agents to programmatically control Minecraft for automated testing, mod development, shader debugging, and resource pack validation. It provides structured JSON output optimized for machine consumption, making it ideal for CI/CD pipelines and headless testing environments.
 
 ## Installation
 
 ### Recommended: Use Shard Launcher
 
-The easiest way to use MC-CLI is with [Shard](https://shard.thomas.md), a Minecraft launcher that comes with the mod pre-installed and configured.
+The easiest way to use MC-CLI is with [Shard](https://shard.sh), a Minecraft launcher that comes with the mod pre-installed and configured.
 
 ### Manual Installation
 
-#### Fabric Mod
+MC-CLI has two components: a **Fabric mod** (runs inside Minecraft) and a **Python CLI** (control interface).
 
-1. Build the mod: `cd mod && ./gradlew build`
-2. Copy `build/libs/mccli-*.jar` to your Minecraft mods folder
-3. Requires: Minecraft 1.21.1, Fabric Loader 0.16.9+
-4. Iris is optional but required for shader features
+#### Prerequisites
 
-#### Python CLI
+- **Minecraft**: 1.21.11
+- **Fabric Loader**: 0.18.4+
+- **Java**: 21+ (for building the mod)
+- **Gradle**: 9.2+ (for building the mod)
+- **Python**: 3.10+
+- **Iris** (optional): Required for shader features
+
+#### 1. Build and Install the Fabric Mod
 
 ```bash
-# Install from source
-pip install -e cli/
+# Clone the repository
+git clone https://github.com/Th0rgal/mc-cli.git
+cd mc-cli
 
-# Or run directly without installing
+# Build the mod (requires Gradle 9.2+)
+cd mod
+gradle build
+
+# The built JAR will be at: mod/build/libs/mccli-1.0.0.jar
+```
+
+Copy `mod/build/libs/mccli-1.0.0.jar` to your Minecraft mods folder:
+- **Linux**: `~/.minecraft/mods/`
+- **macOS**: `~/Library/Application Support/minecraft/mods/`
+- **Windows**: `%APPDATA%\.minecraft\mods\`
+
+Also ensure you have [Fabric API](https://modrinth.com/mod/fabric-api) installed.
+
+#### 2. Install the Python CLI
+
+```bash
+# Navigate to the CLI directory
+cd cli
+
+# Option A: Install globally (recommended)
+pip install .
+
+# Option B: Install in development mode (for contributors)
+pip install -e .
+
+# Option C: Run without installing
 python -m mccli status
 ```
 
-After installation, the `mccli` command will be available in your terminal.
+#### 3. Add to PATH (if needed)
+
+If `mccli` is not available after installation, add Python's bin directory to your PATH:
+
+```bash
+# Linux/macOS - Add to ~/.bashrc or ~/.zshrc
+export PATH="$HOME/.local/bin:$PATH"
+
+# Or find where pip installs scripts
+python -m site --user-base
+# Then add <output>/bin to your PATH
+```
+
+#### 4. Verify Installation
+
+```bash
+# Start Minecraft with the mod installed, then:
+mccli status
+
+# Expected output when connected:
+# in_game: True
+# world_type: singleplayer
+# ...
+```
+
+The mod listens on `localhost:25580` by default. The CLI connects automatically.
 
 ## Architecture
 
@@ -46,6 +102,15 @@ After installation, the `mccli` command will be available in your terminal.
 └─────────────────┘                    └─────────────────┘
 ```
 
+## Use Cases
+
+- **Automated Testing**: Run visual regression tests on resource packs and shaders
+- **Mod Development**: Test mod functionality programmatically without manual interaction
+- **CI/CD Integration**: Automated screenshot capture and validation in build pipelines
+- **LLM Agents**: Enable AI assistants to interact with Minecraft for debugging and development
+- **Resource Pack Validation**: Automatically verify custom textures and models load correctly
+- **Server Testing**: Connect to servers and verify resource pack downloads work headlessly
+
 ## Features
 
 ### Game Control
@@ -53,7 +118,7 @@ After installation, the `mccli` command will be available in your terminal.
 - **teleport** - Move player to coordinates
 - **camera** - Set view direction
 - **time** - Control world time (supports named times: sunrise, noon, sunset, midnight)
-- **server** - Connect/disconnect/status for multiplayer servers
+- **server** - Connect/disconnect/status for multiplayer servers with auto resource pack handling
 - **execute** - Run arbitrary Minecraft commands
 
 ### Shader Development
@@ -155,8 +220,9 @@ MC-CLI is designed for LLM consumption:
 2. **Quantitative Metrics**: Screenshot analysis provides numbers, not subjective descriptions
 3. **Error Detection**: Shader errors are returned in structured format
 4. **Reproducible Scenes**: Define test scenarios as JSON for consistent captures
+5. **Headless Server Testing**: Auto-accept resource packs without UI interaction
 
-### Example Workflow
+### Example: Shader Development Workflow
 
 ```python
 import subprocess
@@ -180,6 +246,33 @@ else:
 
     if metrics["brightness"]["mean"] < 30:
         print("Image is too dark - adjust exposure")
+```
+
+### Example: Automated Server Resource Pack Testing
+
+```python
+import subprocess
+import json
+import time
+
+# Connect to server with automatic resource pack acceptance
+subprocess.run(["mccli", "server", "connect", "demo.oraxen.com", "--resourcepack", "accept"])
+
+# Wait for connection and resource pack download
+time.sleep(10)
+
+# Verify we're connected
+result = subprocess.run(["mccli", "status", "--json"], capture_output=True)
+status = json.loads(result.stdout)
+
+if status["data"]["in_game"] and status["data"]["world_type"] == "multiplayer":
+    # Execute server command to open custom inventory
+    subprocess.run(["mccli", "execute", "/o inv"])
+    time.sleep(1)
+
+    # Capture screenshot to verify custom textures loaded
+    subprocess.run(["mccli", "capture", "-o", "/tmp/server_test.png"])
+    print("Resource pack test complete - screenshot saved")
 ```
 
 ## Command Reference
@@ -221,8 +314,9 @@ mc-cli/
 ## Design Philosophy
 
 1. **LLM-First**: Structured JSON output, quantitative metrics, no ambiguity
-2. **Reliability**: Robust error handling, clear error messages
-3. **Simplicity**: Easy to understand, easy to extend
+2. **Automation-Ready**: Headless operation, no UI interaction required
+3. **Reliability**: Robust error handling, clear error messages
+4. **Simplicity**: Easy to understand, easy to extend
 
 ## License
 
