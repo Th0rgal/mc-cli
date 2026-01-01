@@ -53,6 +53,9 @@ public class CommandDispatcher {
         // Server connection commands
         register(new ServerCommand());
 
+        // Window management commands
+        register(new WindowCommand());
+
         McCliMod.LOGGER.info("Registered {} commands", commands.size());
     }
 

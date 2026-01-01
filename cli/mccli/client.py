@@ -736,3 +736,49 @@ class Client:
             dict with {slot: int, item: dict}
         """
         return self.command("interact", {"action": "select", "slot": slot})
+
+    # =========================================================================
+    # Window Commands
+    # =========================================================================
+
+    def window_focus_grab(self, enabled: bool) -> dict:
+        """
+        Enable or disable window focus grabbing.
+
+        When disabled, Minecraft will not steal focus from other applications.
+        Essential for automated/background testing.
+
+        Args:
+            enabled: True to allow focus grabs, False to suppress them
+
+        Returns:
+            dict with {focus_grab_enabled: bool}
+        """
+        return self.command("window", {"action": "focus_grab", "enabled": enabled})
+
+    def window_focus(self) -> dict:
+        """
+        Manually request window focus.
+
+        Returns:
+            dict with {focused: bool}
+        """
+        return self.command("window", {"action": "focus"})
+
+    def window_close_screen(self) -> dict:
+        """
+        Close any currently open GUI screen.
+
+        Returns:
+            dict with {closed: bool, screen_type?: str}
+        """
+        return self.command("window", {"action": "close_screen"})
+
+    def window_status(self) -> dict:
+        """
+        Get current window/focus status.
+
+        Returns:
+            dict with {focus_grab_enabled: bool, screen_open: bool, screen_type?: str}
+        """
+        return self.command("window", {"action": "status"})

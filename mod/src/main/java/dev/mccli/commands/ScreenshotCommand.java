@@ -5,6 +5,7 @@ import com.google.gson.JsonObject;
 import dev.mccli.McCliMod;
 import dev.mccli.util.IrisHelper;
 import dev.mccli.util.MainThreadExecutor;
+import dev.mccli.util.WindowFocusManager;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.texture.NativeImage;
@@ -78,10 +79,9 @@ public class ScreenshotCommand implements Command {
                             client.options.pauseOnLostFocus
                         };
 
-                        // Focus window
+                        // Focus window (respects WindowFocusManager setting)
                         long handle = client.getWindow().getHandle();
-                        GLFW.glfwShowWindow(handle);
-                        GLFW.glfwFocusWindow(handle);
+                        WindowFocusManager.showWindow(handle);
 
                         // Hide HUD and disable pause
                         client.options.hudHidden = true;

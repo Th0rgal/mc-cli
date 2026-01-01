@@ -25,6 +25,7 @@ Commands:
     interact        Player interactions (use, use_on_block, attack, drop, swap, select)
     macro           Run a JSON macro script
     server          Server connection (connect, disconnect, status)
+    window          Window management (focus_grab, focus, close_screen, status)
 """
 
 from __future__ import annotations
@@ -647,6 +648,59 @@ def cmd_server(args):
         return 1
 
 
+def cmd_window(args):
+    """Window management commands."""
+    try:
+        with Client(args.host, args.port) as mc:
+            if args.action == "focus_grab":
+                if args.enabled is None:
+                    print("Error: --enabled required for 'focus_grab' action")
+                    return 1
+                data = mc.window_focus_grab(args.enabled)
+                if args.json:
+                    output(data, True)
+                else:
+                    status = "enabled" if data.get("focus_grab_enabled") else "disabled"
+                    print(f"Window focus grab: {status}")
+
+            elif args.action == "focus":
+                data = mc.window_focus()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("focused"):
+                        print("Window focus requested")
+                    else:
+                        print("Focus request suppressed (focus grab disabled)")
+
+            elif args.action == "close_screen":
+                data = mc.window_close_screen()
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("closed"):
+                        print(f"Closed screen: {data.get('screen_type')}")
+                    else:
+                        print(f"No screen to close: {data.get('reason', 'No screen open')}")
+
+            elif args.action == "status":
+                data = mc.window_status()
+                if args.json:
+                    output(data, True)
+                else:
+                    focus_status = "enabled" if data.get("focus_grab_enabled") else "disabled"
+                    print(f"Focus grab: {focus_status}")
+                    if data.get("screen_open"):
+                        print(f"Screen open: {data.get('screen_type')}")
+                    else:
+                        print("No screen open")
+
+            return 0
+    except Exception as e:
+        output({"error": str(e)}, args.json)
+        return 1
+
+
 def cmd_interact(args):
     """Player interaction commands."""
     try:
@@ -856,6 +910,13 @@ def main():
     server_p.add_argument("--resourcepack", choices=["prompt", "accept", "reject"], default="prompt",
                           help="Resource pack policy: prompt (default), accept, or reject")
 
+    # window
+    window_p = sub.add_parser("window", help="Window management (focus control for headless operation)")
+    window_p.add_argument("action", choices=["focus_grab", "focus", "close_screen", "status"],
+                          help="Window action")
+    window_p.add_argument("--enabled", type=lambda x: x.lower() in ('true', '1', 'yes'),
+                          default=None, help="Enable/disable focus grab (true/false)")
+
     # interact
     interact_p = sub.add_parser("interact", help="Player interactions (use items, place blocks, etc.)")
     interact_p.add_argument("action", choices=["use", "use_on_block", "attack", "drop", "swap", "select"],
@@ -903,6 +964,7 @@ def main():
         "interact": cmd_interact,
         "macro": cmd_macro,
         "server": cmd_server,
+        "window": cmd_window,
     }
 
     return commands[args.command](args)
