@@ -783,6 +783,21 @@ class Client:
         """
         return self.command("window", {"action": "focus_grab", "enabled": enabled})
 
+    def window_pause_on_lost_focus(self, enabled: bool) -> dict:
+        """
+        Enable or disable pause-on-lost-focus behavior.
+
+        When disabled, the pause menu won't appear when the window loses focus,
+        allowing screenshots and commands to work in the background.
+
+        Args:
+            enabled: True to show pause menu on focus loss, False to disable it
+
+        Returns:
+            dict with {pause_on_lost_focus_enabled: bool}
+        """
+        return self.command("window", {"action": "pause_on_lost_focus", "enabled": enabled})
+
     def window_focus(self) -> dict:
         """
         Manually request window focus.

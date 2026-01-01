@@ -26,7 +26,7 @@ Complete reference for all MC-CLI commands.
 | `block [--x y z]` | Probe targeted or specific block |
 | `entity` | Probe targeted entity |
 | `interact use\|use_on_block\|attack\|drop\|swap\|select` | Player interactions |
-| `window focus_grab\|focus\|close_screen\|status` | Window management |
+| `window focus_grab\|pause_on_lost_focus\|focus\|close_screen\|status` | Window management |
 | `macro file.json` | Run a JSON macro script |
 
 ---
@@ -1072,6 +1072,29 @@ mccli window focus_grab --enabled true
 }
 ```
 
+### window pause_on_lost_focus
+
+Enable or disable the pause menu appearing when the window loses focus. When disabled,
+screenshots and commands can work while Minecraft runs in the background.
+
+```bash
+# Disable pause menu on focus loss (for headless operation)
+mccli window pause_on_lost_focus --enabled false
+
+# Re-enable pause menu
+mccli window pause_on_lost_focus --enabled true
+```
+
+**Arguments:**
+- `--enabled` - true | false (required)
+
+**Response:**
+```json
+{
+  "pause_on_lost_focus_enabled": false
+}
+```
+
 ### window focus
 
 Request window focus.
@@ -1115,6 +1138,7 @@ mccli window status
 ```json
 {
   "focus_grab_enabled": true,
+  "pause_on_lost_focus_enabled": true,
   "screen_open": false,
   "screen_type": null
 }

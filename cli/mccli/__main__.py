@@ -750,6 +750,17 @@ def cmd_window(args):
                     status = "enabled" if data.get("focus_grab_enabled") else "disabled"
                     print(f"Window focus grab: {status}")
 
+            elif args.action == "pause_on_lost_focus":
+                if args.enabled is None:
+                    print("Error: --enabled required for 'pause_on_lost_focus' action")
+                    return 1
+                data = mc.window_pause_on_lost_focus(args.enabled)
+                if args.json:
+                    output(data, True)
+                else:
+                    status = "enabled" if data.get("pause_on_lost_focus_enabled") else "disabled"
+                    print(f"Pause on lost focus: {status}")
+
             elif args.action == "focus":
                 data = mc.window_focus()
                 if args.json:
@@ -776,7 +787,9 @@ def cmd_window(args):
                     output(data, True)
                 else:
                     focus_status = "enabled" if data.get("focus_grab_enabled") else "disabled"
+                    pause_status = "enabled" if data.get("pause_on_lost_focus_enabled") else "disabled"
                     print(f"Focus grab: {focus_status}")
+                    print(f"Pause on lost focus: {pause_status}")
                     if data.get("screen_open"):
                         print(f"Screen open: {data.get('screen_type')}")
                     else:
@@ -1006,10 +1019,10 @@ def main():
 
     # window
     window_p = sub.add_parser("window", help="Window management (focus control for headless operation)")
-    window_p.add_argument("action", choices=["focus_grab", "focus", "close_screen", "status"],
+    window_p.add_argument("action", choices=["focus_grab", "pause_on_lost_focus", "focus", "close_screen", "status"],
                           help="Window action")
     window_p.add_argument("--enabled", type=lambda x: x.lower() in ('true', '1', 'yes'),
-                          default=None, help="Enable/disable focus grab (true/false)")
+                          default=None, help="Enable/disable setting (true/false)")
 
     # interact
     interact_p = sub.add_parser("interact", help="Player interactions (use items, place blocks, etc.)")

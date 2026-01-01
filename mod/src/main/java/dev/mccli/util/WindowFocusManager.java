@@ -11,17 +11,27 @@ import org.lwjgl.glfw.GLFW;
  * - Minecraft will not request window focus
  * - Screenshots will not force focus the window
  * - Interactions will not steal focus from other applications
+ * - Optionally disables pause-on-lost-focus to prevent the pause menu
  *
  * This is essential for automated testing where Minecraft runs in the background.
  */
 public class WindowFocusManager {
     private static volatile boolean focusGrabEnabled = true;
+    private static volatile boolean pauseOnLostFocusOverride = false;
+    private static volatile Boolean originalPauseOnLostFocus = null;
 
     /**
      * Check if focus grab is enabled.
      */
     public static boolean isFocusGrabEnabled() {
         return focusGrabEnabled;
+    }
+
+    /**
+     * Check if pause-on-lost-focus override is active.
+     */
+    public static boolean isPauseOnLostFocusDisabled() {
+        return pauseOnLostFocusOverride;
     }
 
     /**
@@ -32,6 +42,37 @@ public class WindowFocusManager {
     public static void setFocusGrabEnabled(boolean enabled) {
         focusGrabEnabled = enabled;
         McCliMod.LOGGER.info("Window focus grab {}", enabled ? "enabled" : "disabled");
+    }
+
+    /**
+     * Enable or disable the pause-on-lost-focus override.
+     * When enabled, Minecraft will not pause when the window loses focus.
+     *
+     * @param disable true to disable pause-on-lost-focus, false to restore original behavior
+     */
+    public static void setPauseOnLostFocusDisabled(boolean disable) {
+        MinecraftClient client = MinecraftClient.getInstance();
+        if (client == null || client.options == null) {
+            return;
+        }
+
+        if (disable) {
+            // Save original value if not already saved
+            if (originalPauseOnLostFocus == null) {
+                originalPauseOnLostFocus = client.options.pauseOnLostFocus;
+            }
+            client.options.pauseOnLostFocus = false;
+            pauseOnLostFocusOverride = true;
+            McCliMod.LOGGER.info("Pause-on-lost-focus disabled for headless operation");
+        } else {
+            // Restore original value
+            if (originalPauseOnLostFocus != null) {
+                client.options.pauseOnLostFocus = originalPauseOnLostFocus;
+                originalPauseOnLostFocus = null;
+            }
+            pauseOnLostFocusOverride = false;
+            McCliMod.LOGGER.info("Pause-on-lost-focus restored to original setting");
+        }
     }
 
     /**
