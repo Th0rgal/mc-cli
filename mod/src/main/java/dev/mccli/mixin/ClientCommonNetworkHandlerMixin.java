@@ -44,9 +44,12 @@ public abstract class ClientCommonNetworkHandlerMixin {
         if (ServerResourcePackHandler.shouldAccept()) {
             McCliMod.LOGGER.info("Auto-accepting server resource pack: {} (required: {})", urlString, required);
 
+            // Send ACCEPTED status to server immediately (protocol expects ACCEPTED before download)
+            sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.ACCEPTED));
+
             MinecraftClient client = MinecraftClient.getInstance();
 
-            // Schedule on the main thread to ensure proper initialization
+            // Schedule download on the main thread to ensure proper initialization
             client.execute(() -> {
                 try {
                     ServerResourcePackLoader loader = client.getServerResourcePackProvider();
@@ -59,12 +62,9 @@ public abstract class ClientCommonNetworkHandlerMixin {
                     String hashToUse = (hash == null || hash.isEmpty()) ? null : hash;
                     loader.addResourcePack(packId, url, hashToUse);
 
-                    // Send ACCEPTED status to server
-                    sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.ACCEPTED));
-
                     McCliMod.LOGGER.info("Resource pack added for download: {}", urlString);
                 } catch (Exception e) {
-                    McCliMod.LOGGER.error("Failed to auto-accept resource pack: {}", e.getMessage(), e);
+                    McCliMod.LOGGER.error("Failed to download resource pack: {}", e.getMessage(), e);
                     sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.FAILED_DOWNLOAD));
                 }
             });

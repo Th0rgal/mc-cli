@@ -256,7 +256,10 @@ public class InteractCommand implements Command {
         } else if (slot < 36) {
             screenSlot = slot; // Main inventory
         } else if (slot < 40) {
-            screenSlot = 5 + (slot - 36); // Armor slots (36-39 -> 5-8)
+            // Armor slots: PlayerInventory uses feet(36), legs(37), chest(38), head(39)
+            // PlayerScreenHandler uses head(5), chest(6), legs(7), feet(8)
+            // So we need to invert: 8 - (slot - 36)
+            screenSlot = 8 - (slot - 36); // Armor slots (36->8, 37->7, 38->6, 39->5)
         } else {
             screenSlot = 45; // Offhand
         }
@@ -378,7 +381,8 @@ public class InteractCommand implements Command {
         } else if (inventorySlot < 36) {
             return inventorySlot; // Main inventory
         } else if (inventorySlot < 40) {
-            return 5 + (inventorySlot - 36); // Armor
+            // Armor: invert mapping (see handleDrop for detailed comment)
+            return 8 - (inventorySlot - 36); // Armor (36->8, 37->7, 38->6, 39->5)
         } else {
             return 45; // Offhand
         }
