@@ -2,7 +2,9 @@ package dev.mccli.mixin;
 
 import dev.mccli.McCliMod;
 import dev.mccli.util.ServerResourcePackHandler;
+import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientCommonNetworkHandler;
+import net.minecraft.client.network.ServerResourcePackLoader;
 import net.minecraft.network.packet.Packet;
 import net.minecraft.network.packet.c2s.common.ResourcePackStatusC2SPacket;
 import net.minecraft.network.packet.s2c.common.ResourcePackSendS2CPacket;
@@ -36,10 +38,14 @@ public abstract class ClientCommonNetworkHandlerMixin {
 
         if (ServerResourcePackHandler.shouldAccept()) {
             McCliMod.LOGGER.info("Auto-accepting server resource pack: {} (required: {})", url, required);
-            // Send accepted status - the client will then download the pack
+            // Send accepted status
             sendPacket(new ResourcePackStatusC2SPacket(packId, ResourcePackStatusC2SPacket.Status.ACCEPTED));
-            // Note: We don't cancel here because we want the pack to actually download
-            // The default handler will proceed with downloading after we send ACCEPTED
+            // Trigger the download via the server resource pack loader
+            MinecraftClient client = MinecraftClient.getInstance();
+            ServerResourcePackLoader loader = client.getServerResourcePackLoader();
+            loader.acceptAll();
+            // Cancel the default handler to prevent the prompt from showing
+            ci.cancel();
         } else {
             McCliMod.LOGGER.info("Auto-rejecting server resource pack: {} (required: {})", url, required);
             // Send declined status
