@@ -6,6 +6,7 @@ Complete reference for all MC-CLI commands.
 
 | Command | Description |
 |---------|-------------|
+| `instances` | List running MC-CLI instances |
 | `status` | Get game state |
 | `teleport x y z` | Move player |
 | `camera yaw pitch` | Set view direction |
@@ -19,12 +20,71 @@ Complete reference for all MC-CLI commands.
 | `perf` | Performance metrics |
 | `logs [--level LEVEL]` | Get game logs |
 | `execute command` | Run Minecraft command |
-| `server connect\|disconnect\|status` | Server connection management |
+| `server connect\|disconnect\|status\|connection_error` | Server connection management |
 | `item [--hand main\|off] [--slot N]` | Inspect held item or slot |
 | `inventory [--section ...]` | List inventory contents |
 | `block [--x y z]` | Probe targeted or specific block |
 | `entity` | Probe targeted entity |
+| `interact use\|use_on_block\|attack\|drop\|swap\|select` | Player interactions |
+| `window focus_grab\|focus\|close_screen\|status` | Window management |
 | `macro file.json` | Run a JSON macro script |
+
+---
+
+## Multi-Instance Support
+
+MC-CLI supports controlling multiple Minecraft instances simultaneously. Each instance registers itself in `~/.mccli/instances.json` with a unique name and port.
+
+### instances
+
+List all running MC-CLI instances.
+
+```bash
+mccli instances
+mccli instances --all  # Include dead instances
+mccli instances --json
+```
+
+**Response:**
+```json
+{
+  "instances": [
+    {
+      "name": "my_world",
+      "port": 25580,
+      "pid": 12345,
+      "address": "localhost:25580",
+      "alive": true
+    },
+    {
+      "name": "hypixel_net",
+      "port": 25581,
+      "pid": 12346,
+      "address": "localhost:25581",
+      "alive": true
+    }
+  ],
+  "count": 2
+}
+```
+
+### Targeting a Specific Instance
+
+Use `--instance` or `-i` to target a specific instance:
+
+```bash
+# By name (partial match supported)
+mccli --instance my_world status
+mccli -i hypixel status
+
+# By port
+mccli -i 25581 status
+```
+
+**Auto-detection behavior:**
+- If only one instance is running, it's used automatically
+- If multiple instances exist and none specified, an error lists available instances
+- If no instances are registered, falls back to `localhost:25580`
 
 ---
 
@@ -637,18 +697,28 @@ Manage multiplayer server connections.
 mccli server connect play.example.com
 mccli server connect play.example.com --server-port 25565
 
+# Connect with automatic resource pack handling
+mccli server connect play.example.com --resourcepack accept
+
 # Disconnect from current server/world
 mccli server disconnect
 
 # Connection status
 mccli server status
+
+# Check for connection errors
+mccli server connection_error
+mccli server connection_error --clear
 ```
 
 **Arguments:**
 - `connect <address>` - server hostname or IP
 - `--server-port` - server port (default: 25565)
+- `--resourcepack` - resource pack policy: prompt (default), accept, or reject
 - `disconnect` - leave current world
 - `status` - get current connection details
+- `connection_error` - get last connection/disconnection error
+- `--clear` - clear error after showing (for connection_error)
 
 **Response (connect):**
 ```json
@@ -656,7 +726,8 @@ mccli server status
   "success": true,
   "connecting": true,
   "address": "play.example.com",
-  "port": 25565
+  "port": 25565,
+  "resourcepack_policy": "accept"
 }
 ```
 
@@ -678,6 +749,17 @@ mccli server status
   "server_name": "Example Server",
   "server_address": "play.example.com:25565",
   "player_count": 12
+}
+```
+
+**Response (connection_error):**
+```json
+{
+  "has_error": true,
+  "error": "Connection refused",
+  "server_address": "play.example.com:25565",
+  "timestamp": 1704067200000,
+  "recent": true
 }
 ```
 
@@ -816,6 +898,230 @@ mccli entity --max-distance 6 --include-nbt
 
 ---
 
+## interact
+
+Player interaction commands for using items, placing blocks, attacking, etc.
+
+### interact use
+
+Use the item in hand (right-click in air).
+
+```bash
+mccli interact use
+mccli interact use --hand off
+```
+
+**Arguments:**
+- `--hand` - main | off (default: main)
+
+**Response:**
+```json
+{
+  "result": "success",
+  "hand": "main",
+  "item": {"id": "minecraft:bow", "name": "Bow", "count": 1}
+}
+```
+
+### interact use_on_block
+
+Use item on a block (right-click on block, place blocks).
+
+```bash
+# Use on targeted block
+mccli interact use_on_block
+
+# Use on specific coordinates
+mccli interact use_on_block --x 10 --y 64 --z -20 --face up
+```
+
+**Arguments:**
+- `--hand` - main | off (default: main)
+- `--x --y --z` - block position (optional, uses targeted block if not specified)
+- `--face` - up | down | north | south | east | west (default: up)
+- `--inside-block` - click position inside block
+
+**Response:**
+```json
+{
+  "result": "success",
+  "hand": "main",
+  "block_pos": {"x": 10, "y": 64, "z": -20},
+  "face": "up",
+  "item": {"id": "minecraft:cobblestone", "name": "Cobblestone", "count": 63}
+}
+```
+
+### interact attack
+
+Attack/swing (left-click). Can target air or a specific block.
+
+```bash
+# Swing in air
+mccli interact attack
+
+# Attack a specific block
+mccli interact attack --target block --x 10 --y 64 --z -20
+```
+
+**Arguments:**
+- `--target` - air | block (default: air)
+- `--x --y --z` - block position (for block target)
+- `--face` - block face (default: up)
+
+**Response:**
+```json
+{
+  "result": "success",
+  "target": "air"
+}
+```
+
+### interact drop
+
+Drop items from inventory.
+
+```bash
+# Drop one item from current slot
+mccli interact drop
+
+# Drop entire stack
+mccli interact drop --all
+
+# Drop from specific slot
+mccli interact drop --slot 5 --all
+```
+
+**Arguments:**
+- `--slot` - inventory slot (default: current hotbar slot)
+- `--all` - drop entire stack instead of one item
+
+**Response:**
+```json
+{
+  "dropped": true,
+  "count": 64,
+  "item": {"id": "minecraft:cobblestone", "name": "Cobblestone"}
+}
+```
+
+### interact swap
+
+Swap items between inventory slots.
+
+```bash
+mccli interact swap --from-slot 0 --to-slot 5
+```
+
+**Arguments:**
+- `--from-slot` - source slot (required)
+- `--to-slot` - destination slot (required)
+
+**Response:**
+```json
+{
+  "swapped": true,
+  "from_slot": 0,
+  "to_slot": 5,
+  "from_item": {"id": "minecraft:diamond_sword", "count": 1},
+  "to_item": {"empty": true}
+}
+```
+
+### interact select
+
+Select a hotbar slot.
+
+```bash
+mccli interact select 2
+```
+
+**Arguments:**
+- `slot` - hotbar slot 0-8 (required)
+
+**Response:**
+```json
+{
+  "slot": 2,
+  "item": {"id": "minecraft:pickaxe", "name": "Diamond Pickaxe", "count": 1}
+}
+```
+
+---
+
+## window
+
+Window management for headless operation.
+
+### window focus_grab
+
+Enable or disable window focus grabbing. Useful for headless/automated operation.
+
+```bash
+mccli window focus_grab --enabled false
+mccli window focus_grab --enabled true
+```
+
+**Arguments:**
+- `--enabled` - true | false (required)
+
+**Response:**
+```json
+{
+  "focus_grab_enabled": false
+}
+```
+
+### window focus
+
+Request window focus.
+
+```bash
+mccli window focus
+```
+
+**Response:**
+```json
+{
+  "focused": true
+}
+```
+
+### window close_screen
+
+Close any open GUI screen.
+
+```bash
+mccli window close_screen
+```
+
+**Response:**
+```json
+{
+  "closed": true,
+  "screen_type": "minecraft:inventory"
+}
+```
+
+### window status
+
+Get window state.
+
+```bash
+mccli window status
+```
+
+**Response:**
+```json
+{
+  "focus_grab_enabled": true,
+  "screen_open": false,
+  "screen_type": null
+}
+```
+
+---
+
 ## macro
 
 Run a JSON macro script locally (CLI-side). Each step can send an MC-CLI command,
@@ -868,8 +1174,9 @@ All commands support these options:
 
 | Option | Description |
 |--------|-------------|
-| `--host HOST` | MC-CLI server host (default: localhost) |
-| `--port PORT` | MC-CLI server port (default: 25580) |
+| `--instance NAME` / `-i NAME` | Connect to named instance (name or port) |
+| `--host HOST` | MC-CLI server host (default: auto-detect or localhost) |
+| `--port PORT` | MC-CLI server port (default: auto-detect or 25580) |
 | `--json` | Output as JSON |
 
 ---

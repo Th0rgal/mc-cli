@@ -626,6 +626,33 @@ class Client:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data
 
+    def server_connection_error(self, clear: bool = False) -> dict:
+        """
+        Get the last connection/disconnection error.
+
+        This captures errors shown on the DisconnectedScreen, such as:
+        - Invalid session (requires restart)
+        - Server is full
+        - You are banned
+        - Connection timed out
+
+        Args:
+            clear: Clear the error after returning (default: False)
+
+        Returns:
+            dict with:
+            - has_error: bool
+            - error: str (the error message, if has_error)
+            - timestamp: int (unix timestamp in ms, if has_error)
+            - recent: bool (true if error is < 30 seconds old)
+            - server_address: str (if known)
+            - cleared: bool (if clear was requested)
+        """
+        result = self._send("server", {"action": "connection_error", "clear": clear})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
     # =========================================================================
     # Interaction Commands
     # =========================================================================

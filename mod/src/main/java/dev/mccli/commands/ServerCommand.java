@@ -1,6 +1,7 @@
 package dev.mccli.commands;
 
 import com.google.gson.JsonObject;
+import dev.mccli.util.ConnectionErrorTracker;
 import dev.mccli.util.MainThreadExecutor;
 import dev.mccli.util.ServerResourcePackHandler;
 import net.minecraft.client.MinecraftClient;
@@ -22,6 +23,7 @@ import java.util.concurrent.CompletableFuture;
  *           resourcepack_policy (optional: "prompt", "accept", "reject")
  * - disconnect: Disconnect from current server/world
  * - status: Get current server connection info
+ * - connection_error: Get the last connection/disconnection error
  */
 public class ServerCommand implements Command {
     @Override
@@ -37,6 +39,7 @@ public class ServerCommand implements Command {
             case "connect" -> connect(params);
             case "disconnect" -> disconnect();
             case "status" -> status();
+            case "connection_error" -> connectionError(params);
             default -> {
                 CompletableFuture<JsonObject> future = new CompletableFuture<>();
                 future.completeExceptionally(new IllegalArgumentException("Unknown action: " + action));
@@ -176,5 +179,36 @@ public class ServerCommand implements Command {
 
             return result;
         });
+    }
+
+    private CompletableFuture<JsonObject> connectionError(JsonObject params) {
+        boolean clear = params.has("clear") && params.get("clear").getAsBoolean();
+
+        CompletableFuture<JsonObject> future = new CompletableFuture<>();
+        JsonObject result = new JsonObject();
+
+        String lastError = ConnectionErrorTracker.getLastError();
+        long lastErrorTime = ConnectionErrorTracker.getLastErrorTime();
+        String lastServerAddress = ConnectionErrorTracker.getLastServerAddress();
+
+        result.addProperty("has_error", lastError != null);
+
+        if (lastError != null) {
+            result.addProperty("error", lastError);
+            result.addProperty("timestamp", lastErrorTime);
+            result.addProperty("recent", ConnectionErrorTracker.hasRecentError());
+
+            if (lastServerAddress != null) {
+                result.addProperty("server_address", lastServerAddress);
+            }
+        }
+
+        if (clear) {
+            ConnectionErrorTracker.clear();
+            result.addProperty("cleared", true);
+        }
+
+        future.complete(result);
+        return future;
     }
 }

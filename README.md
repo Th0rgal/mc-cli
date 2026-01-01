@@ -166,6 +166,36 @@ The mod listens on `localhost:25580` by default. The CLI connects automatically.
 ### Automation
 - **macro** - Run JSON macro scripts for automated workflows
 
+### Multi-Instance Control
+- **instances** - List all running MC-CLI instances
+- **--instance / -i** - Target a specific instance by name or port
+
+## Multi-Instance Support
+
+MC-CLI can control multiple Minecraft instances simultaneously. Each instance running the mod registers itself in `~/.mccli/instances.json`.
+
+```bash
+# List all running instances
+mccli instances
+
+# Target a specific instance by name
+mccli --instance my_world status
+mccli -i hypixel_net capture -o screenshot.png
+
+# Target by port number
+mccli -i 25581 status
+```
+
+**Auto-detection:**
+- If only one instance is running, commands connect to it automatically
+- If multiple instances exist, you must specify which one with `--instance`
+- Dynamic port allocation: instances automatically use ports 25580-25589
+
+**Instance naming:**
+- Singleplayer worlds use the world name (e.g., `my_world`)
+- Multiplayer servers use the server address (e.g., `hypixel_net`)
+- Fallback: `minecraft-<pid>`
+
 ## Quick Start
 
 ```bash
