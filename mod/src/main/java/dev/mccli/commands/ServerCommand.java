@@ -2,6 +2,7 @@ package dev.mccli.commands;
 
 import com.google.gson.JsonObject;
 import dev.mccli.util.MainThreadExecutor;
+import dev.mccli.util.ServerResourcePackHandler;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.TitleScreen;
 import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
@@ -16,7 +17,8 @@ import java.util.concurrent.CompletableFuture;
  *
  * Actions:
  * - connect: Connect to a multiplayer server
- *   Params: address (required), port (optional, default 25565)
+ *   Params: address (required), port (optional, default 25565),
+ *           resourcepack_policy (optional: "prompt", "accept", "reject")
  * - disconnect: Disconnect from current server/world
  * - status: Get current server connection info
  */
@@ -51,6 +53,9 @@ public class ServerCommand implements Command {
 
         String addressStr = params.get("address").getAsString();
         int port = params.has("port") ? params.get("port").getAsInt() : 25565;
+        String resourcepackPolicy = params.has("resourcepack_policy")
+            ? params.get("resourcepack_policy").getAsString()
+            : "prompt";
 
         // Build full address string
         String fullAddress = addressStr.contains(":") ? addressStr : addressStr + ":" + port;
@@ -65,6 +70,9 @@ public class ServerCommand implements Command {
                 result.addProperty("error", "Already in a world. Disconnect first.");
                 return result;
             }
+
+            // Set resource pack policy before connecting
+            ServerResourcePackHandler.setPolicy(resourcepackPolicy);
 
             try {
                 ServerAddress serverAddress = ServerAddress.parse(fullAddress);
@@ -88,6 +96,7 @@ public class ServerCommand implements Command {
                 result.addProperty("connecting", true);
                 result.addProperty("address", serverAddress.getAddress());
                 result.addProperty("port", serverAddress.getPort());
+                result.addProperty("resourcepack_policy", resourcepackPolicy);
             } catch (Exception e) {
                 result.addProperty("success", false);
                 result.addProperty("error", "Failed to connect: " + e.getMessage());
@@ -111,9 +120,11 @@ public class ServerCommand implements Command {
             boolean wasMultiplayer = !client.isIntegratedServerRunning();
             String worldName = wasMultiplayer ? "multiplayer" : "singleplayer";
 
-            // Disconnect and return to title screen
-            client.disconnect();
-            client.setScreen(new TitleScreen());
+            // Disconnect and return to title screen (1.21.11 requires a Screen parameter)
+            client.disconnect(new TitleScreen(), false);
+
+            // Reset resource pack policy
+            ServerResourcePackHandler.reset();
 
             result.addProperty("success", true);
             result.addProperty("disconnected", true);

@@ -596,12 +596,20 @@ def cmd_server(args):
                 if not args.address:
                     print("Error: address required for 'connect' action")
                     return 1
-                data = mc.server_connect(args.address, args.server_port)
+                data = mc.server_connect(
+                    args.address,
+                    args.server_port,
+                    resourcepack_policy=args.resourcepack
+                )
                 if args.json:
                     output(data, True)
                 else:
                     if data.get("success"):
-                        print(f"Connecting to {data.get('address')}:{data.get('port')}...")
+                        msg = f"Connecting to {data.get('address')}:{data.get('port')}..."
+                        policy = data.get("resourcepack_policy", "prompt")
+                        if policy != "prompt":
+                            msg += f" (resourcepack: {policy})"
+                        print(msg)
                     else:
                         print(f"Failed to connect: {data.get('error')}")
 
@@ -752,6 +760,8 @@ def main():
     server_p.add_argument("action", choices=["connect", "disconnect", "status"])
     server_p.add_argument("address", nargs="?", help="Server address (for 'connect')")
     server_p.add_argument("--server-port", type=int, default=25565, help="Server port (default: 25565)")
+    server_p.add_argument("--resourcepack", choices=["prompt", "accept", "reject"], default="prompt",
+                          help="Resource pack policy: prompt (default), accept, or reject")
 
     args = parser.parse_args()
 

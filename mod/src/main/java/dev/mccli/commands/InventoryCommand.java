@@ -76,9 +76,12 @@ public class InventoryCommand implements Command {
                 }
             }
 
+            // Armor slots (slots 36-39 in player inventory - 1.21.11 uses getStack with slot index)
             if (section == null || section.equalsIgnoreCase("armor")) {
-                for (int i = 0; i < inv.armor.size(); i++) {
-                    ItemStack stack = inv.armor.get(i);
+                // Armor slots are 36-39 (feet=36, legs=37, chest=38, head=39)
+                for (int i = 0; i < 4; i++) {
+                    int armorSlot = 36 + i;
+                    ItemStack stack = inv.getStack(armorSlot);
                     if (!includeEmpty && stack.isEmpty()) {
                         continue;
                     }
@@ -90,14 +93,12 @@ public class InventoryCommand implements Command {
                 }
             }
 
+            // Offhand slot (slot 40)
             if (section == null || section.equalsIgnoreCase("offhand")) {
-                for (int i = 0; i < inv.offHand.size(); i++) {
-                    ItemStack stack = inv.offHand.get(i);
-                    if (!includeEmpty && stack.isEmpty()) {
-                        continue;
-                    }
+                ItemStack stack = inv.getStack(PlayerInventory.OFF_HAND_SLOT);
+                if (includeEmpty || !stack.isEmpty()) {
                     JsonObject entry = new JsonObject();
-                    entry.addProperty("slot", i);
+                    entry.addProperty("slot", 0);
                     entry.addProperty("slot_type", "offhand");
                     entry.add("item", ItemJson.fromStack(stack, includeNbt));
                     items.add(entry);

@@ -566,18 +566,32 @@ class Client:
     # Server Connection Commands
     # =========================================================================
 
-    def server_connect(self, address: str, port: int = 25565) -> dict:
+    def server_connect(
+        self,
+        address: str,
+        port: int = 25565,
+        resourcepack_policy: str = "prompt"
+    ) -> dict:
         """
         Connect to a multiplayer server.
 
         Args:
             address: Server address (hostname or IP)
             port: Server port (default: 25565)
+            resourcepack_policy: How to handle server resource packs:
+                - "prompt" (default): Show normal prompt to user
+                - "accept": Automatically accept and download
+                - "reject": Automatically decline
 
         Returns:
-            dict with {success: bool, connecting: bool, address: str, port: int}
+            dict with {success: bool, connecting: bool, address: str, port: int, resourcepack_policy: str}
         """
-        result = self._send("server", {"action": "connect", "address": address, "port": port})
+        result = self._send("server", {
+            "action": "connect",
+            "address": address,
+            "port": port,
+            "resourcepack_policy": resourcepack_policy
+        })
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data

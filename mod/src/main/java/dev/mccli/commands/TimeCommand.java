@@ -105,8 +105,8 @@ public class TimeCommand implements Command {
                 throw new IllegalStateException("Not in game");
             }
 
-            // Use /time set command
-            player.networkHandler.sendCommand("time set " + time);
+            // Use /time set command (1.21.11 uses sendChatCommand)
+            player.networkHandler.sendChatCommand("time set " + time);
 
             JsonObject result = new JsonObject();
             result.addProperty("time", time);

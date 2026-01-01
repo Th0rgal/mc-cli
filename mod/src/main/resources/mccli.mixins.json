@@ -3,7 +3,8 @@
   "package": "dev.mccli.mixin",
   "compatibilityLevel": "JAVA_21",
   "client": [
-    "ChatHudMixin"
+    "ChatHudMixin",
+    "ClientCommonNetworkHandlerMixin"
   ],
   "injectors": {
     "defaultRequire": 1

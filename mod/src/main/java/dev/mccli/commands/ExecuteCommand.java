@@ -47,7 +47,8 @@ public class ExecuteCommand implements Command {
                 throw new IllegalStateException("Not in game");
             }
 
-            player.networkHandler.sendCommand(finalCommand);
+            // 1.21.11 uses sendChatCommand instead of sendCommand
+            player.networkHandler.sendChatCommand(finalCommand);
 
             JsonObject result = new JsonObject();
             result.addProperty("executed", true);

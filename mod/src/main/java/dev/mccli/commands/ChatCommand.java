@@ -71,8 +71,8 @@ public class ChatCommand implements Command {
 
         // Check if it's a command (starts with /)
         if (message.startsWith("/")) {
-            // Send as command (without the leading /)
-            player.networkHandler.sendCommand(message.substring(1));
+            // Send as command (without the leading /) - 1.21.11 uses sendChatCommand
+            player.networkHandler.sendChatCommand(message.substring(1));
             result.addProperty("type", "command");
             result.addProperty("command", message.substring(1));
         } else {

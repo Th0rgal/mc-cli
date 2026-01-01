@@ -128,37 +128,43 @@ public class ScreenshotCommand implements Command {
     }
 
     private CompletableFuture<JsonObject> takeScreenshot(String path) {
-        return MainThreadExecutor.submit(() -> {
+        CompletableFuture<JsonObject> future = new CompletableFuture<>();
+
+        MainThreadExecutor.submitVoid(() -> {
             MinecraftClient client = MinecraftClient.getInstance();
             Framebuffer framebuffer = client.getFramebuffer();
 
-            NativeImage image = ScreenshotRecorder.takeScreenshot(framebuffer);
-
-            try {
-                File file = new File(path);
-                File parentDir = file.getParentFile();
-                if (parentDir != null && !parentDir.exists()) {
-                    parentDir.mkdirs();
-                }
-
+            // 1.21.11 uses async callback pattern for takeScreenshot
+            ScreenshotRecorder.takeScreenshot(framebuffer, image -> {
                 try {
-                    image.writeTo(file);
-                } catch (IOException e) {
-                    throw new RuntimeException("Failed to write screenshot to " + path, e);
+                    File file = new File(path);
+                    File parentDir = file.getParentFile();
+                    if (parentDir != null && !parentDir.exists()) {
+                        parentDir.mkdirs();
+                    }
+
+                    try {
+                        image.writeTo(file);
+                    } catch (IOException e) {
+                        future.completeExceptionally(new RuntimeException("Failed to write screenshot to " + path, e));
+                        return;
+                    }
+
+                    JsonObject result = new JsonObject();
+                    result.addProperty("path", file.getAbsolutePath());
+                    result.addProperty("width", image.getWidth());
+                    result.addProperty("height", image.getHeight());
+                    result.add("metadata", buildMetadata(client));
+
+                    McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
+                    future.complete(result);
+                } finally {
+                    image.close();
                 }
-
-                JsonObject result = new JsonObject();
-                result.addProperty("path", file.getAbsolutePath());
-                result.addProperty("width", image.getWidth());
-                result.addProperty("height", image.getHeight());
-                result.add("metadata", buildMetadata(client));
-
-                McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
-                return result;
-            } finally {
-                image.close();
-            }
+            });
         });
+
+        return future;
     }
 
     private JsonObject buildMetadata(MinecraftClient client) {
