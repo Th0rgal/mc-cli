@@ -21,6 +21,7 @@ import net.minecraft.util.math.Vec3d;
 
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.TimeUnit;
 
 /**
  * Player interaction command for using items, placing blocks, and manipulating inventory.
@@ -144,6 +145,26 @@ public class InteractCommand implements Command {
 
         BlockHitResult blockHitResult = new BlockHitResult(hitPos, face, targetPos, insideBlock);
         ActionResult result = interactionManager.interactBlock(player, hand, blockHitResult);
+
+        // Swing hand on successful interaction (matches vanilla behavior)
+        if (result instanceof ActionResult.Success success) {
+            if (success.swingSource() == ActionResult.SwingSource.CLIENT) {
+                player.swingHand(hand);
+            }
+        } else if (result == ActionResult.PASS || !result.isAccepted()) {
+            // Also call interactItem to match vanilla behavior for item-based placement
+            // This is called when interactBlock returns PASS (block didn't handle it)
+            ItemStack stack2 = player.getStackInHand(hand);
+            if (!stack2.isEmpty()) {
+                ActionResult itemResult = interactionManager.interactItem(player, hand);
+                if (itemResult instanceof ActionResult.Success itemSuccess) {
+                    if (itemSuccess.swingSource() == ActionResult.SwingSource.CLIENT) {
+                        player.swingHand(hand);
+                    }
+                    result = itemResult;
+                }
+            }
+        }
 
         JsonObject response = new JsonObject();
         response.addProperty("result", result.toString());
