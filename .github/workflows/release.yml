@@ -26,9 +26,9 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build mod
+      - name: Build mods
         working-directory: mod
-        run: gradle build
+        run: ./gradlew build
 
       - name: Get version from tag
         id: version
@@ -42,7 +42,8 @@ jobs:
       - name: Prepare artifact
         run: |
           mkdir -p release-files
-          cp mod/build/libs/mccli-*.jar release-files/
+          cp mod/fabric/build/libs/mccli-fabric-*.jar release-files/
+          cp mod/neoforge/build/libs/mccli-neoforge-*.jar release-files/
           # Remove sources and javadoc jars if present
           rm -f release-files/*-sources.jar release-files/*-javadoc.jar
 
@@ -81,18 +82,28 @@ jobs:
           draft: true
           name: MC-CLI ${{ github.ref_name }}
           body: |
-            ## MC-CLI Fabric Mod
+            ## MC-CLI Minecraft Mod
 
-            Download the JAR and place it in your Minecraft mods folder.
+            Download the appropriate JAR for your modloader and place it in your Minecraft mods folder.
 
+            ### Fabric
             **Requirements:**
-            - Minecraft 1.21.11
-            - Fabric Loader 0.18.4+
+            - Minecraft 1.21.1
+            - Fabric Loader 0.16.9+
             - [Fabric API](https://modrinth.com/mod/fabric-api)
+
+            Download: `mccli-fabric-*.jar`
+
+            ### NeoForge
+            **Requirements:**
+            - Minecraft 1.21.1
+            - NeoForge 21.1.93+
+
+            Download: `mccli-neoforge-*.jar`
 
             ## Installation
 
-            1. Download `mccli-1.0.0.jar` below
+            1. Download the JAR for your modloader below
             2. Copy to your mods folder:
                - **Linux**: `~/.minecraft/mods/`
                - **macOS**: `~/Library/Application Support/minecraft/mods/`

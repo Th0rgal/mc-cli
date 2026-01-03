@@ -1,0 +1,39 @@
+# This is a TOML file (see https://toml.io/)
+modLoader = "javafml"
+loaderVersion = "${loader_version_range}"
+license = "${mod_license}"
+issueTrackerURL = "https://github.com/Th0rgal/mc-cli/issues"
+
+[[mods]]
+modId = "${mod_id}"
+version = "${mod_version}"
+displayName = "${mod_name}"
+authors = "${mod_authors}"
+description = '''${mod_description}'''
+
+# Client-only mod
+[[dependencies.${mod_id}]]
+    modId = "neoforge"
+    type = "required"
+    versionRange = "${neo_version}"
+    ordering = "NONE"
+    side = "CLIENT"
+
+[[dependencies.${mod_id}]]
+    modId = "minecraft"
+    type = "required"
+    versionRange = "${minecraft_version_range}"
+    ordering = "NONE"
+    side = "CLIENT"
+
+# Optional Iris support
+[[dependencies.${mod_id}]]
+    modId = "iris"
+    type = "optional"
+    versionRange = "*"
+    ordering = "AFTER"
+    side = "CLIENT"
+
+# Mixin configuration
+[[mixins]]
+config = "mccli.mixins.json"
