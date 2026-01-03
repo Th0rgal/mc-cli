@@ -2,6 +2,20 @@
 
 Complete reference for all MC-CLI commands.
 
+## Loader Availability
+
+MC-CLI is available for both Fabric and NeoForge. Not all commands are available on both loaders:
+
+| Command | Fabric | NeoForge |
+|---------|--------|----------|
+| `status`, `teleport`, `camera`, `time` | Yes | Yes |
+| `shader`, `screenshot`, `perf`, `logs`, `execute` | Yes | Yes |
+| `block`, `entity`, `item`, `inventory` | No | Yes |
+| `interact`, `chat`, `server`, `window`, `world` | No | Yes |
+| `resourcepack` | No | Yes |
+
+The NeoForge version includes additional features through mixins for chat capture, window management, and enhanced block/entity interaction.
+
 ## Quick Reference
 
 | Command | Description |

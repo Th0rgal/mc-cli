@@ -12,13 +12,22 @@ The easiest way is using [Shard](https://github.com/Th0rgal/shard), a Minecraft 
 
 ### Manual Setup
 
-**Requirements:** Minecraft 1.21.11, Fabric 0.18.4+, Python 3.10+, Java 21+
+**Requirements:** Minecraft 1.21.1, Fabric 0.16.9+ or NeoForge 21.1.93+, Python 3.10+, Java 21+
 
 ```bash
-# Build the mod
+# Clone the repository
 git clone https://github.com/Th0rgal/mc-cli.git && cd mc-cli/mod
-gradle build
-# Copy mod/build/libs/mccli-1.0.0.jar to your mods folder
+
+# Build both mods (Fabric and NeoForge)
+./gradlew build
+
+# Or build individually:
+./gradlew :fabric:build    # Fabric mod
+./gradlew :neoforge:build  # NeoForge mod
+
+# Copy the appropriate jar to your mods folder:
+# - Fabric: mod/fabric/build/libs/mccli-fabric-1.0.0.jar
+# - NeoForge: mod/neoforge/build/libs/mccli-neoforge-1.0.0.jar
 
 # Install CLI
 cd ../cli && pip install .
@@ -69,13 +78,41 @@ if not errors["data"]["has_errors"]:
     subprocess.run(["mccli", "capture", "--clean", "-o", "/tmp/test.png"])
 ```
 
+## Mod Variants
+
+MC-CLI is available for both major mod loaders:
+
+| Variant | Minecraft | Loader | Features |
+|---------|-----------|--------|----------|
+| **Fabric** | 1.21.1 | Fabric 0.16.9+ | Core commands (10 commands) |
+| **NeoForge** | 1.21.1 | NeoForge 21.1.93+ | Extended features (20 commands, mixins) |
+
+The NeoForge version includes additional commands for chat capture, window management, and enhanced interaction capabilities.
+
 ## Architecture
 
 ```
-Python CLI  <--TCP:25580/JSON-->  Fabric Mod  -->  Minecraft
+Python CLI  <--TCP:25580/JSON-->  Fabric/NeoForge Mod  -->  Minecraft
 ```
 
 See [docs/COMMANDS.md](docs/COMMANDS.md) for full documentation.
+
+## Project Structure
+
+```
+mc-cli/
+├── cli/                    # Python CLI client
+├── mod/                    # Minecraft mod (multi-loader)
+│   ├── fabric/            # Fabric mod subproject
+│   │   ├── build.gradle
+│   │   └── src/main/java/dev/mccli/
+│   ├── neoforge/          # NeoForge mod subproject
+│   │   ├── build.gradle
+│   │   └── src/main/java/dev/mccli/
+│   ├── build.gradle       # Root build file
+│   └── settings.gradle    # Multi-project configuration
+└── docs/                   # Documentation
+```
 
 ## License
 
