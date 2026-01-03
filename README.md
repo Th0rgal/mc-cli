@@ -10,6 +10,12 @@ MC-CLI enables AI agents to programmatically control Minecraft for automated tes
 
 The easiest way is using [Shard](https://github.com/Th0rgal/shard), a Minecraft launcher with MC-CLI pre-installed.
 
+### Download from Releases
+
+Download pre-built JARs from [GitHub Releases](https://github.com/Th0rgal/mc-cli/releases):
+- **Fabric**: `mccli-fabric-*.jar` (requires [Fabric API](https://modrinth.com/mod/fabric-api))
+- **NeoForge**: `mccli-neoforge-*.jar`
+
 ### Manual Setup
 
 **Requirements:** Minecraft 1.21.1, Fabric 0.16.9+ or NeoForge 21.1.93+, Python 3.10+, Java 21+
