@@ -1,6 +1,7 @@
 # Java/Gradle
 mod/.gradle/
 mod/build/
+mod/*/build/
 mod/.idea/
 mod/*.iml
 mod/run/
