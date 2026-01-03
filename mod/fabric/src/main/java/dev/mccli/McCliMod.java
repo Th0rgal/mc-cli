@@ -1,9 +1,15 @@
 package dev.mccli;
 
 import dev.mccli.server.SocketServer;
+import dev.mccli.util.LogCaptureAppender;
 import dev.mccli.util.MainThreadExecutor;
 import net.fabricmc.api.ClientModInitializer;
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import org.apache.logging.log4j.Level;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.LoggerContext;
+import org.apache.logging.log4j.core.config.Configuration;
+import org.apache.logging.log4j.core.config.LoggerConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -34,6 +40,7 @@ public class McCliMod implements ClientModInitializer {
     public static final int DEFAULT_PORT = 25580;
 
     private SocketServer server;
+    private static LogCaptureAppender logAppender;
 
     @Override
     public void onInitializeClient() {
@@ -44,6 +51,9 @@ public class McCliMod implements ClientModInitializer {
             MainThreadExecutor.processPendingTasks();
         });
 
+        // Install log capture appender
+        installLogCapture();
+
         // Start TCP server
         server = new SocketServer(DEFAULT_PORT);
         server.start();
@@ -53,8 +63,41 @@ public class McCliMod implements ClientModInitializer {
             if (server != null) {
                 server.stop();
             }
+            uninstallLogCapture();
         }));
 
         LOGGER.info("MC-CLI ready on port {}", DEFAULT_PORT);
+    }
+
+    private static void installLogCapture() {
+        try {
+            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+            Configuration config = ctx.getConfiguration();
+            logAppender = new LogCaptureAppender();
+            logAppender.start();
+
+            config.addAppender(logAppender);
+            LoggerConfig root = config.getRootLogger();
+            root.addAppender(logAppender, Level.ALL, null);
+            ctx.updateLoggers();
+        } catch (Exception e) {
+            LOGGER.warn("Failed to install log capture appender", e);
+        }
+    }
+
+    private static void uninstallLogCapture() {
+        try {
+            if (logAppender == null) {
+                return;
+            }
+            LoggerContext ctx = (LoggerContext) LogManager.getContext(false);
+            Configuration config = ctx.getConfiguration();
+            LoggerConfig root = config.getRootLogger();
+            root.removeAppender(logAppender.getName());
+            logAppender.stop();
+            ctx.updateLoggers();
+        } catch (Exception e) {
+            LOGGER.warn("Failed to uninstall log capture appender", e);
+        }
     }
 }

@@ -130,6 +130,10 @@ public class ScreenshotCommand implements Command {
 
             NativeImage image = ScreenshotRecorder.takeScreenshot(framebuffer);
 
+            if (image == null) {
+                throw new RuntimeException("Failed to capture screenshot");
+            }
+
             try {
                 File file = new File(path);
                 File parentDir = file.getParentFile();
