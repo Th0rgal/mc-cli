@@ -126,9 +126,8 @@ public class InteractCommand implements Command {
             int z = params.get("z").getAsInt();
             targetPos = new BlockPos(x, y, z);
             face = getDirection(params);
-            // Hit position on the face
-            var normal = face.getNormal();
-            hitPos = Vec3.atCenterOf(targetPos).add(normal.getX() * 0.5, normal.getY() * 0.5, normal.getZ() * 0.5);
+            // Hit position on the face (1.21.11: use step methods for normal)
+            hitPos = Vec3.atCenterOf(targetPos).add(face.getStepX() * 0.5, face.getStepY() * 0.5, face.getStepZ() * 0.5);
         } else {
             // Use crosshair target
             HitResult hitResult = player.pick(5.0, 0.0f, false);
@@ -251,6 +250,7 @@ public class InteractCommand implements Command {
                 throw new IllegalArgumentException("Invalid slot index: " + slot);
             }
         } else {
+            // Access transformer makes this field accessible
             slot = inv.selected;
         }
 
@@ -367,6 +367,7 @@ public class InteractCommand implements Command {
             throw new IllegalArgumentException("Hotbar slot must be 0-8, got: " + slot);
         }
 
+        // Access transformer makes this field accessible
         player.getInventory().selected = slot;
 
         JsonObject response = new JsonObject();

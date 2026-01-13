@@ -105,8 +105,8 @@ public class WindowCommand implements Command {
      */
     private CompletableFuture<JsonObject> handleFocus() {
         return MainThreadExecutor.submit(() -> {
-            Minecraft client = Minecraft.getInstance();
-            long handle = client.getWindow().getWindow();
+            // In 1.21.11, use GLFW to get window handle
+            long handle = GLFW.glfwGetCurrentContext();
 
             GLFW.glfwShowWindow(handle);
             GLFW.glfwFocusWindow(handle);

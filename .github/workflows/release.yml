@@ -88,16 +88,16 @@ jobs:
 
             ### Fabric
             **Requirements:**
-            - Minecraft 1.21.1
-            - Fabric Loader 0.16.9+
+            - Minecraft 1.21.11
+            - Fabric Loader 0.18.1+
             - [Fabric API](https://modrinth.com/mod/fabric-api)
 
             Download: `mccli-fabric-*.jar`
 
             ### NeoForge
             **Requirements:**
-            - Minecraft 1.21.1
-            - NeoForge 21.1.93+
+            - Minecraft 1.21.11
+            - NeoForge 21.11.0+
 
             Download: `mccli-neoforge-*.jar`
 

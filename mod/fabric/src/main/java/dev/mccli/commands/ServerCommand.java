@@ -140,9 +140,8 @@ public class ServerCommand implements Command {
             boolean wasMultiplayer = !client.isIntegratedServerRunning();
             String worldName = wasMultiplayer ? "multiplayer" : "singleplayer";
 
-            // Disconnect and return to title screen
-            client.disconnect();
-            client.setScreen(new TitleScreen());
+            // Disconnect and return to title screen (1.21.11 requires a Screen parameter)
+            client.disconnect(new TitleScreen(), false);
 
             result.addProperty("success", true);
             result.addProperty("disconnected", true);

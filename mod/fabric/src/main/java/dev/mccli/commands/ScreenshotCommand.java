@@ -124,39 +124,46 @@ public class ScreenshotCommand implements Command {
     }
 
     private CompletableFuture<JsonObject> takeScreenshot(String path) {
-        return MainThreadExecutor.submit(() -> {
+        CompletableFuture<JsonObject> future = new CompletableFuture<>();
+
+        MainThreadExecutor.submitVoid(() -> {
             MinecraftClient client = MinecraftClient.getInstance();
             Framebuffer framebuffer = client.getFramebuffer();
 
-            NativeImage image = ScreenshotRecorder.takeScreenshot(framebuffer);
-
-            if (image == null) {
-                throw new RuntimeException("Failed to capture screenshot");
-            }
-
-            try {
-                File file = new File(path);
-                File parentDir = file.getParentFile();
-                if (parentDir != null && !parentDir.exists()) {
-                    parentDir.mkdirs();
+            // New callback-based API in 1.21.11
+            ScreenshotRecorder.takeScreenshot(framebuffer, image -> {
+                if (image == null) {
+                    future.completeExceptionally(new RuntimeException("Failed to capture screenshot"));
+                    return;
                 }
 
                 try {
-                    image.writeTo(file);
-                } catch (IOException e) {
-                    throw new RuntimeException("Failed to write screenshot", e);
+                    File file = new File(path);
+                    File parentDir = file.getParentFile();
+                    if (parentDir != null && !parentDir.exists()) {
+                        parentDir.mkdirs();
+                    }
+
+                    try {
+                        image.writeTo(file);
+                    } catch (IOException e) {
+                        future.completeExceptionally(new RuntimeException("Failed to write screenshot", e));
+                        return;
+                    }
+
+                    JsonObject result = new JsonObject();
+                    result.addProperty("path", file.getAbsolutePath());
+                    result.addProperty("width", image.getWidth());
+                    result.addProperty("height", image.getHeight());
+
+                    McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
+                    future.complete(result);
+                } finally {
+                    image.close();
                 }
-
-                JsonObject result = new JsonObject();
-                result.addProperty("path", file.getAbsolutePath());
-                result.addProperty("width", image.getWidth());
-                result.addProperty("height", image.getHeight());
-
-                McCliMod.LOGGER.info("Screenshot saved to {}", file.getAbsolutePath());
-                return result;
-            } finally {
-                image.close();
-            }
+            });
         });
+
+        return future;
     }
 }

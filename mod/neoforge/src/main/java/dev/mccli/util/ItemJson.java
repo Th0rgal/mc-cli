@@ -36,10 +36,11 @@ public final class ItemJson {
             item.addProperty("durability", stack.getMaxDamage() - stack.getDamageValue());
         }
 
-        // Custom model data (1.21.1: simple integer value)
+        // Custom model data (1.21.11: structure may have changed)
         CustomModelData customModelData = stack.get(DataComponents.CUSTOM_MODEL_DATA);
         if (customModelData != null) {
-            item.addProperty("custom_model_data", customModelData.value());
+            // In 1.21.11, CustomModelData structure changed - use toString as fallback
+            item.addProperty("custom_model_data", customModelData.toString());
         }
 
         // Include full component string if requested
@@ -54,9 +55,7 @@ public final class ItemJson {
             for (Holder<Enchantment> entry : enchantments.keySet()) {
                 JsonObject enchant = new JsonObject();
                 // Handle both Reference (has ID) and Direct (no ID) registry entries
-                String enchantId = entry.unwrapKey()
-                    .map(key -> key.location().toString())
-                    .orElseGet(() -> "unknown");
+                String enchantId = entry.getRegisteredName();
                 enchant.addProperty("id", enchantId);
                 enchant.addProperty("level", enchantments.getLevel(entry));
                 enchantmentsArray.add(enchant);

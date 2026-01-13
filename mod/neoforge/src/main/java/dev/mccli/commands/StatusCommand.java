@@ -56,8 +56,8 @@ public class StatusCommand implements Command {
                 // World time
                 result.addProperty("time", world.getDayTime() % 24000);
 
-                // Dimension
-                result.addProperty("dimension", world.dimension().location().toString());
+                // Dimension (1.21.11: use toString() for dimension key)
+                result.addProperty("dimension", world.dimension().toString());
 
                 // Iris/shader info
                 result.addProperty("iris_loaded", IrisHelper.isLoaded());
