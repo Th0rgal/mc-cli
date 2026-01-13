@@ -80,7 +80,8 @@ public class ScreenshotCommand implements Command {
                         };
 
                         // Focus window (respects WindowFocusManager setting)
-                        long handle = client.getWindow().getWindow();
+                        // In 1.21.11, use GLFW to get window handle
+                        long handle = org.lwjgl.glfw.GLFW.glfwGetCurrentContext();
                         WindowFocusManager.showWindow(handle);
 
                         // Hide HUD and disable pause
@@ -131,14 +132,14 @@ public class ScreenshotCommand implements Command {
         CompletableFuture<JsonObject> future = new CompletableFuture<>();
 
         MainThreadExecutor.submitVoid(() -> {
-            try {
-                Minecraft client = Minecraft.getInstance();
-                RenderTarget framebuffer = client.getMainRenderTarget();
+            Minecraft client = Minecraft.getInstance();
+            RenderTarget framebuffer = client.getMainRenderTarget();
 
-                NativeImage image = Screenshot.takeScreenshot(framebuffer);
-
+            // New callback-based API in 1.21.11
+            Screenshot.takeScreenshot(framebuffer, image -> {
                 if (image == null) {
-                    throw new RuntimeException("Failed to capture screenshot");
+                    future.completeExceptionally(new RuntimeException("Failed to capture screenshot"));
+                    return;
                 }
 
                 try {
@@ -163,9 +164,7 @@ public class ScreenshotCommand implements Command {
                 } finally {
                     image.close();
                 }
-            } catch (Exception e) {
-                future.completeExceptionally(new RuntimeException("Failed to take screenshot", e));
-            }
+            });
         });
 
         return future;
@@ -188,7 +187,8 @@ public class ScreenshotCommand implements Command {
         ClientLevel level = client.level;
         if (level != null) {
             meta.addProperty("time", level.getDayTime() % 24000);
-            meta.addProperty("dimension", level.dimension().location().toString());
+            // In 1.21.11, use toString() for dimension key
+            meta.addProperty("dimension", level.dimension().toString());
         }
 
         meta.addProperty("iris_loaded", IrisHelper.isLoaded());

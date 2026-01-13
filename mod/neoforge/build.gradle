@@ -17,9 +17,16 @@ java.toolchain.languageVersion = JavaLanguageVersion.of(21)
 neoForge {
     version = project.neo_version
 
-    parchment {
-        mappingsVersion = project.parchment_mappings_version
-        minecraftVersion = project.parchment_minecraft_version
+    // Parchment mappings disabled for 1.21.11 as they're not yet available
+    // This is the last obfuscated MC version; future versions won't need Parchment
+    // parchment {
+    //     mappingsVersion = project.parchment_mappings_version
+    //     minecraftVersion = project.parchment_minecraft_version
+    // }
+
+    // Access transformer for making Inventory.selected accessible
+    accessTransformers {
+        publish(file('src/main/resources/META-INF/accesstransformer.cfg'))
     }
 
     runs {

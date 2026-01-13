@@ -18,7 +18,7 @@ Download pre-built JARs from [GitHub Releases](https://github.com/Th0rgal/mc-cli
 
 ### Manual Setup
 
-**Requirements:** Minecraft 1.21.1, Fabric 0.16.9+ or NeoForge 21.1.93+, Python 3.10+, Java 21+
+**Requirements:** Minecraft 1.21.11, Fabric 0.18.1+ or NeoForge 21.11.0+, Python 3.10+, Java 21+
 
 ```bash
 # Clone the repository
@@ -90,8 +90,8 @@ MC-CLI is available for both major mod loaders:
 
 | Variant | Minecraft | Loader | Features |
 |---------|-----------|--------|----------|
-| **Fabric** | 1.21.1 | Fabric 0.16.9+ | Core commands (10 commands) |
-| **NeoForge** | 1.21.1 | NeoForge 21.1.93+ | Extended features (20 commands, mixins) |
+| **Fabric** | 1.21.11 | Fabric 0.18.1+ | Core commands (10 commands) |
+| **NeoForge** | 1.21.11 | NeoForge 21.11.0+ | Extended features (20 commands, mixins) |
 
 The NeoForge version includes additional commands for chat capture, window management, and enhanced interaction capabilities.
 

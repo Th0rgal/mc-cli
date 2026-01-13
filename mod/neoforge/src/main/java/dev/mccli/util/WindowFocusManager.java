@@ -101,7 +101,8 @@ public class WindowFocusManager {
         if (client.getWindow() == null) {
             return false;
         }
-        return requestFocus(client.getWindow().getWindow());
+        // In 1.21.11, getWindow() renamed to getHandle() for GLFW handle
+        return requestFocus(org.lwjgl.glfw.GLFW.glfwGetCurrentContext());
     }
 
     /**

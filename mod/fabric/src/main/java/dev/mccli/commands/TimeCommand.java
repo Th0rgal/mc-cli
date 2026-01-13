@@ -98,7 +98,7 @@ public class TimeCommand implements Command {
             }
 
             // Use /time set command
-            player.networkHandler.sendCommand("time set " + time);
+            player.networkHandler.sendChatCommand("time set " + time);
 
             JsonObject result = new JsonObject();
             result.addProperty("time", time);

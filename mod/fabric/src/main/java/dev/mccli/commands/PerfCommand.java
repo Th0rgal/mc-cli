@@ -1,9 +1,9 @@
 package dev.mccli.commands;
 
 import com.google.gson.JsonObject;
-import com.mojang.blaze3d.platform.GlDebugInfo;
 import dev.mccli.util.MainThreadExecutor;
 import net.minecraft.client.MinecraftClient;
+import org.lwjgl.opengl.GL11;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -56,7 +56,7 @@ public class PerfCommand implements Command {
 
             // GPU info
             try {
-                String gpuInfo = GlDebugInfo.getRenderer();
+                String gpuInfo = GL11.glGetString(GL11.GL_RENDERER);
                 if (gpuInfo != null) {
                     result.addProperty("gpu", gpuInfo);
                 }

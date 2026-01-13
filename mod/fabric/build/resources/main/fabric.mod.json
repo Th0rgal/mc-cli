@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "mccli",
-  "version": "1.0.0",
+  "version": "1.1.0",
   "name": "MC-CLI",
   "description": "Minecraft Command-Line Interface for LLM-Assisted Shader Development",
   "authors": ["MC-CLI Contributors"],
@@ -12,9 +12,10 @@
   "entrypoints": {
     "client": ["dev.mccli.McCliMod"]
   },
+  "mixins": ["mccli.mixins.json"],
   "depends": {
-    "fabricloader": ">=0.16.0",
-    "minecraft": "~1.21",
+    "fabricloader": ">=0.18.1",
+    "minecraft": "~1.21.11",
     "java": ">=21"
   },
   "suggests": {
