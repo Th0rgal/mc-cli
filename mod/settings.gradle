@@ -13,4 +13,5 @@ plugins {
 rootProject.name = "mccli"
 
 include 'fabric'
+include 'fabric-1.21.4'
 include 'neoforge'
