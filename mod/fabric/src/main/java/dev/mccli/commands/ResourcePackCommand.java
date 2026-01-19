@@ -4,9 +4,9 @@ import com.google.gson.JsonArray;
 import com.google.gson.JsonObject;
 import dev.mccli.McCliMod;
 import dev.mccli.util.MainThreadExecutor;
-import net.minecraft.client.Minecraft;
-import net.minecraft.server.packs.repository.PackRepository;
-import net.minecraft.server.packs.repository.Pack;
+import net.minecraft.client.MinecraftClient;
+import net.minecraft.resource.ResourcePackManager;
+import net.minecraft.resource.ResourcePackProfile;
 
 import java.io.File;
 import java.io.IOException;
@@ -72,8 +72,8 @@ public class ResourcePackCommand implements Command {
         }
 
         return MainThreadExecutor.submit(() -> {
-            Minecraft client = Minecraft.getInstance();
-            PackRepository repository = client.getResourcePackRepository();
+            MinecraftClient client = MinecraftClient.getInstance();
+            ResourcePackManager repository = client.getResourcePackManager();
 
             return switch (action) {
                 case "list" -> listPacks(repository);
@@ -86,16 +86,16 @@ public class ResourcePackCommand implements Command {
         });
     }
 
-    private JsonObject listPacks(PackRepository repository) {
+    private JsonObject listPacks(ResourcePackManager repository) {
         JsonObject result = new JsonObject();
         JsonArray packs = new JsonArray();
 
-        for (Pack pack : repository.getAvailablePacks()) {
+        for (ResourcePackProfile pack : repository.getProfiles()) {
             JsonObject packObj = new JsonObject();
             packObj.addProperty("id", pack.getId());
-            packObj.addProperty("name", pack.getTitle().getString());
+            packObj.addProperty("name", pack.getDisplayName().getString());
             packObj.addProperty("description", pack.getDescription().getString());
-            packObj.addProperty("enabled", repository.getSelectedIds().contains(pack.getId()));
+            packObj.addProperty("enabled", repository.getEnabledIds().contains(pack.getId()));
             packObj.addProperty("required", pack.isRequired());
             packs.add(packObj);
         }
@@ -105,14 +105,14 @@ public class ResourcePackCommand implements Command {
         return result;
     }
 
-    private JsonObject listEnabledPacks(PackRepository repository) {
+    private JsonObject listEnabledPacks(ResourcePackManager repository) {
         JsonObject result = new JsonObject();
         JsonArray packs = new JsonArray();
 
-        for (Pack pack : repository.getSelectedPacks()) {
+        for (ResourcePackProfile pack : repository.getEnabledProfiles()) {
             JsonObject packObj = new JsonObject();
             packObj.addProperty("id", pack.getId());
-            packObj.addProperty("name", pack.getTitle().getString());
+            packObj.addProperty("name", pack.getDisplayName().getString());
             packObj.addProperty("description", pack.getDescription().getString());
             packs.add(packObj);
         }
@@ -122,18 +122,18 @@ public class ResourcePackCommand implements Command {
         return result;
     }
 
-    private JsonObject enablePack(PackRepository repository, String name) {
+    private JsonObject enablePack(ResourcePackManager repository, String name) {
         JsonObject result = new JsonObject();
 
         // Find the pack by ID or display name
-        Pack pack = findPack(repository, name);
+        ResourcePackProfile pack = findPack(repository, name);
         if (pack == null) {
             result.addProperty("success", false);
             result.addProperty("error", "Resource pack not found: " + name);
             return result;
         }
 
-        if (repository.getSelectedIds().contains(pack.getId())) {
+        if (repository.getEnabledIds().contains(pack.getId())) {
             result.addProperty("success", true);
             result.addProperty("already_enabled", true);
             result.addProperty("id", pack.getId());
@@ -141,21 +141,21 @@ public class ResourcePackCommand implements Command {
         }
 
         // Enable the pack
-        Collection<String> enabled = new ArrayList<>(repository.getSelectedIds());
+        Collection<String> enabled = new ArrayList<>(repository.getEnabledIds());
         enabled.add(pack.getId());
-        repository.setSelected(enabled);
+        repository.setEnabledProfiles(enabled);
 
         result.addProperty("success", true);
         result.addProperty("id", pack.getId());
-        result.addProperty("name", pack.getTitle().getString());
+        result.addProperty("name", pack.getDisplayName().getString());
         return result;
     }
 
-    private JsonObject disablePack(PackRepository repository, String name) {
+    private JsonObject disablePack(ResourcePackManager repository, String name) {
         JsonObject result = new JsonObject();
 
         // Find the pack by ID or display name
-        Pack pack = findPack(repository, name);
+        ResourcePackProfile pack = findPack(repository, name);
         if (pack == null) {
             result.addProperty("success", false);
             result.addProperty("error", "Resource pack not found: " + name);
@@ -168,7 +168,7 @@ public class ResourcePackCommand implements Command {
             return result;
         }
 
-        if (!repository.getSelectedIds().contains(pack.getId())) {
+        if (!repository.getEnabledIds().contains(pack.getId())) {
             result.addProperty("success", true);
             result.addProperty("already_disabled", true);
             result.addProperty("id", pack.getId());
@@ -176,21 +176,21 @@ public class ResourcePackCommand implements Command {
         }
 
         // Disable the pack
-        Collection<String> enabled = new ArrayList<>(repository.getSelectedIds());
+        Collection<String> enabled = new ArrayList<>(repository.getEnabledIds());
         enabled.remove(pack.getId());
-        repository.setSelected(enabled);
+        repository.setEnabledProfiles(enabled);
 
         result.addProperty("success", true);
         result.addProperty("id", pack.getId());
-        result.addProperty("name", pack.getTitle().getString());
+        result.addProperty("name", pack.getDisplayName().getString());
         return result;
     }
 
-    private JsonObject reloadPacks(Minecraft client) {
+    private JsonObject reloadPacks(MinecraftClient client) {
         JsonObject result = new JsonObject();
 
         // Trigger resource reload
-        client.reloadResourcePacks();
+        client.reloadResources();
 
         result.addProperty("success", true);
         result.addProperty("reloading", true);
@@ -215,8 +215,8 @@ public class ResourcePackCommand implements Command {
             }
 
             try {
-                Minecraft client = Minecraft.getInstance();
-                Path resourcepacksDir = client.getResourcePackDirectory();
+                MinecraftClient client = MinecraftClient.getInstance();
+                Path resourcepacksDir = client.getResourcePackDir();
 
                 // Create resourcepacks directory if it doesn't exist
                 if (!Files.exists(resourcepacksDir)) {
@@ -241,28 +241,28 @@ public class ResourcePackCommand implements Command {
 
                 // Scan for new packs and optionally enable
                 return MainThreadExecutor.submit(() -> {
-                    Minecraft mc = Minecraft.getInstance();
-                    PackRepository repository = mc.getResourcePackRepository();
+                    MinecraftClient mc = MinecraftClient.getInstance();
+                    ResourcePackManager repository = mc.getResourcePackManager();
 
                     // Scan for new packs
-                    repository.reload();
+                    repository.scanPacks();
 
                     String packId = "file/" + sourceFile.getName();
-                    Pack pack = findPack(repository, packId);
+                    ResourcePackProfile pack = findPack(repository, packId);
 
                     if (pack != null) {
                         result.addProperty("pack_id", pack.getId());
-                        result.addProperty("pack_name", pack.getTitle().getString());
+                        result.addProperty("pack_name", pack.getDisplayName().getString());
 
                         if (enableAfterLoad) {
-                            Collection<String> enabled = new ArrayList<>(repository.getSelectedIds());
+                            Collection<String> enabled = new ArrayList<>(repository.getEnabledIds());
                             if (!enabled.contains(pack.getId())) {
                                 enabled.add(pack.getId());
-                                repository.setSelected(enabled);
+                                repository.setEnabledProfiles(enabled);
                                 result.addProperty("enabled", true);
 
                                 // Reload resources to apply the pack
-                                mc.reloadResourcePacks();
+                                mc.reloadResources();
                                 result.addProperty("reloading", true);
                             }
                         }
@@ -299,23 +299,23 @@ public class ResourcePackCommand implements Command {
         });
     }
 
-    private Pack findPack(PackRepository repository, String name) {
+    private ResourcePackProfile findPack(ResourcePackManager repository, String name) {
         // Try exact ID match first
-        for (Pack pack : repository.getAvailablePacks()) {
+        for (ResourcePackProfile pack : repository.getProfiles()) {
             if (pack.getId().equals(name)) {
                 return pack;
             }
         }
 
         // Try display name match
-        for (Pack pack : repository.getAvailablePacks()) {
-            if (pack.getTitle().getString().equalsIgnoreCase(name)) {
+        for (ResourcePackProfile pack : repository.getProfiles()) {
+            if (pack.getDisplayName().getString().equalsIgnoreCase(name)) {
                 return pack;
             }
         }
 
         // Try partial ID match
-        for (Pack pack : repository.getAvailablePacks()) {
+        for (ResourcePackProfile pack : repository.getProfiles()) {
             if (pack.getId().toLowerCase().contains(name.toLowerCase())) {
                 return pack;
             }

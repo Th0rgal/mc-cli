@@ -503,6 +503,24 @@ class Client:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data
 
+    def resourcepack_load(self, path: str, enable: bool = False) -> dict:
+        """
+        Load a resource pack from a file path.
+
+        Copies the pack to the resourcepacks folder and optionally enables it.
+
+        Args:
+            path: Path to the resource pack zip file or directory
+            enable: Whether to enable the pack after loading
+
+        Returns:
+            dict with {success: bool, copied_to: str, pack_id: str, enabled: bool}
+        """
+        result = self._send("resourcepack", {"action": "load", "path": path, "enable": enable})
+        if not result.success:
+            raise RuntimeError(f"Command failed: {result.error}")
+        return result.data
+
     # =========================================================================
     # Chat Commands
     # =========================================================================
