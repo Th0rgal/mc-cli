@@ -31,6 +31,9 @@ public class CommandDispatcher {
         // Shader commands
         register(new ShaderCommand());
 
+        // Resource pack commands
+        register(new ResourcePackCommand());
+
         // Visual commands
         register(new ScreenshotCommand());
 

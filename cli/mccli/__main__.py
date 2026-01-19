@@ -14,7 +14,7 @@ Commands:
     instances       List registered MC-CLI instances
     status          Check game connection and state
     shader          Shader management (list, get, set, reload, errors)
-    resourcepack    Resource pack management (list, enabled, enable, disable, reload)
+    resourcepack    Resource pack management (list, enabled, enable, disable, reload, load)
     chat            Chat messaging (send, history, clear)
     capture         Take a screenshot
     analyze         Analyze screenshot metrics
@@ -607,6 +607,25 @@ def cmd_resourcepack(args):
                 else:
                     print("Resource packs reloading...")
 
+            elif args.action == "load":
+                if not args.path:
+                    print("Error: --path required for 'load' action")
+                    return 1
+                data = mc.resourcepack_load(args.path, args.enable)
+                if args.json:
+                    output(data, True)
+                else:
+                    if data.get("success"):
+                        print(f"Resource pack copied to: {data.get('copied_to')}")
+                        if data.get("pack_id"):
+                            print(f"Pack ID: {data.get('pack_id')}")
+                        if data.get("enabled"):
+                            print("Pack enabled and resources reloading...")
+                        if data.get("warning"):
+                            print(f"Warning: {data.get('warning')}")
+                    else:
+                        print(f"Failed to load: {data.get('error')}")
+
             return 0
     except Exception as e:
         output({"error": str(e)}, args.json)
@@ -1068,8 +1087,10 @@ def main():
 
     # resourcepack
     rp_p = sub.add_parser("resourcepack", help="Resource pack management")
-    rp_p.add_argument("action", choices=["list", "enabled", "enable", "disable", "reload"])
+    rp_p.add_argument("action", choices=["list", "enabled", "enable", "disable", "reload", "load"])
     rp_p.add_argument("--name", help="Resource pack name/ID (for 'enable' and 'disable')")
+    rp_p.add_argument("--path", help="Path to resource pack zip file (for 'load')")
+    rp_p.add_argument("--enable", action="store_true", help="Enable pack after loading (for 'load')")
 
     # chat
     chat_p = sub.add_parser("chat", help="Chat messaging")
