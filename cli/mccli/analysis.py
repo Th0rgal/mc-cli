@@ -33,6 +33,8 @@ class ImageMetrics:
 
     # Distribution
     histogram: list[int]       # 16-bin brightness histogram
+    missing_texture_pixels: int
+    missing_texture_percent: float
 
     # Metadata
     width: int
@@ -52,6 +54,11 @@ class ImageMetrics:
             "color_temp": round(self.color_temp, 3),
             "saturation_mean": round(self.saturation_mean, 3),
             "histogram": self.histogram,
+            "missing_texture": {
+                "pixels": self.missing_texture_pixels,
+                "percent": round(self.missing_texture_percent, 4),
+                "likely": self.missing_texture_percent >= 0.5,
+            },
             "dimensions": {"width": self.width, "height": self.height},
             "path": self.path,
         }
@@ -64,6 +71,7 @@ class ImageMetrics:
             f"Range: {self.brightness_min}-{self.brightness_max} (contrast: {self.contrast_ratio:.1f}x)",
             f"Color temp: {'warm' if self.color_temp < 0.4 else 'cool' if self.color_temp > 0.6 else 'neutral'}",
             f"Saturation: {'low' if self.saturation_mean < 0.3 else 'high' if self.saturation_mean > 0.6 else 'medium'}",
+            f"Missing-texture pixels: {self.missing_texture_percent:.3f}%",
         ]
         return "\n".join(lines)
 
@@ -96,6 +104,15 @@ class ImageMetrics:
             issues.append("VERY_WARM: Strong warm/red color cast")
         elif self.color_temp > 0.7:
             issues.append("VERY_COOL: Strong cool/blue color cast")
+
+        if self.missing_texture_percent >= 2.0:
+            issues.append(
+                f"MISSING_TEXTURE_LIKELY: {self.missing_texture_percent:.2f}% pixels match black/purple missing-texture colors"
+            )
+        elif self.missing_texture_percent >= 0.5:
+            issues.append(
+                f"MISSING_TEXTURE_POSSIBLE: {self.missing_texture_percent:.2f}% pixels match black/purple missing-texture colors"
+            )
 
         # Clipping
         total = sum(self.histogram)
@@ -244,6 +261,7 @@ def analyze(path: str | Path) -> ImageMetrics:
     brightnesses = []
     saturations = []
     red_sum = green_sum = blue_sum = 0
+    missing_texture_pixels = 0
 
     for r, g, b in pixels:
         # Luminance
@@ -259,6 +277,14 @@ def analyze(path: str | Path) -> ImageMetrics:
         green_sum += g
         blue_sum += b
 
+        # Vanilla's missing-texture pattern is a high-contrast black/magenta
+        # checkerboard. Magenta is the distinctive signal; counting black
+        # pixels alone produces false positives on normal shadows, logs, caves,
+        # and dense foliage.
+        is_magenta = r >= 120 and b >= 120 and g <= 80 and abs(r - b) <= 90
+        if is_magenta:
+            missing_texture_pixels += 1
+
     # Stats
     n = len(brightnesses)
     brightness_mean = sum(brightnesses) / n
@@ -270,6 +296,7 @@ def analyze(path: str | Path) -> ImageMetrics:
     total_rb = red_sum + blue_sum
     color_temp = blue_sum / total_rb if total_rb > 0 else 0.5
     saturation_mean = sum(saturations) / n
+    missing_texture_percent = (missing_texture_pixels / n) * 100 if n else 0.0
 
     # Histogram (16 bins)
     histogram = [0] * 16
@@ -285,6 +312,8 @@ def analyze(path: str | Path) -> ImageMetrics:
         color_temp=color_temp,
         saturation_mean=saturation_mean,
         histogram=histogram,
+        missing_texture_pixels=missing_texture_pixels,
+        missing_texture_percent=missing_texture_percent,
         width=width,
         height=height,
         path=str(path),

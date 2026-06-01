@@ -31,6 +31,7 @@ The NeoForge version includes additional features through mixins for chat captur
 | `capture -o path [--clean]` | Take screenshot |
 | `analyze path` | Analyze screenshot |
 | `compare a b` | Compare screenshots |
+| `diagnose [--screenshot path]` | Collect status, pack, log, and screenshot diagnostics |
 | `perf` | Performance metrics |
 | `logs [--level LEVEL]` | Get game logs |
 | `execute command` | Run Minecraft command |
@@ -569,6 +570,8 @@ The analyze command detects these issues:
 - `DESATURATED` - Saturation < 0.1
 - `VERY_WARM` - Color temp < 0.3
 - `VERY_COOL` - Color temp > 0.7
+- `MISSING_TEXTURE_POSSIBLE` - At least 0.5% of pixels match Minecraft's black/purple missing-texture colors
+- `MISSING_TEXTURE_LIKELY` - At least 2% of pixels match Minecraft's black/purple missing-texture colors
 - `SHADOW_CLIPPING` - >10% pixels in darkest bin
 - `HIGHLIGHT_CLIPPING` - >10% pixels in brightest bin
 
@@ -597,6 +600,32 @@ mccli compare before.png after.png --json
   "histogram_correlation": 0.95
 }
 ```
+
+---
+
+## diagnose
+
+Collect a compact diagnostics report for automated visual/debug workflows.
+It waits for the client to be in-game, reports server and enabled resource-pack
+state, scans recent warning/error logs, and can capture/analyze a screenshot.
+
+```bash
+mccli --json diagnose
+mccli --json diagnose --expect-server localhost --expect-resourcepack server
+mccli diagnose --screenshot captures/scene.png --clean
+```
+
+**Arguments:**
+- `--timeout` - max readiness wait in ms (default: 30000)
+- `--expect-server` - substring expected in the connected server address
+- `--expect-resourcepack` - substring expected in an enabled pack ID/name
+- `--screenshot` - optional screenshot output path
+- `--missing-texture-threshold` - fail screenshot check at or above this black/purple pixel percent (default: 0.5)
+- `--log-filter` - regex for warning/error logs relevant to assets and rendering
+
+The screenshot analysis reports `missing_texture.percent`, which is a generic
+heuristic for Minecraft's black/purple missing-texture colors. It is intended
+as a review signal, not a proof that a specific item is broken.
 
 ---
 
