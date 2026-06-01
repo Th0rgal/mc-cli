@@ -55,7 +55,7 @@ mccli perf                # FPS and memory metrics
 |----------|----------|
 | **Game Control** | `status`, `teleport`, `camera`, `time`, `server`, `execute` |
 | **Shaders** | `shader list/get/set/reload/errors/disable` |
-| **Capture** | `capture`, `analyze`, `compare` |
+| **Capture/Diagnostics** | `capture`, `analyze`, `compare`, `diagnose` |
 | **Resources** | `resourcepack list/enable/disable/reload` |
 | **Inspection** | `item`, `inventory`, `block`, `entity` |
 | **Interaction** | `interact use/attack/drop/swap/select` |
@@ -82,6 +82,14 @@ errors = json.loads(result.stdout)
 
 if not errors["data"]["has_errors"]:
     subprocess.run(["mccli", "capture", "--clean", "-o", "/tmp/test.png"])
+
+# Collect a review-friendly snapshot after connecting to a server
+result = subprocess.run([
+    "mccli", "--json", "diagnose",
+    "--expect-resourcepack", "server",
+    "--screenshot", "/tmp/scene.png",
+    "--clean",
+], capture_output=True)
 ```
 
 ## Mod Variants

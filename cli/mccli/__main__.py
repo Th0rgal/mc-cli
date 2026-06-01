@@ -30,6 +30,7 @@ Commands:
     entity          Probe targeted entity
     interact        Player interactions (use, use_on_block, attack, drop, swap, select)
     macro           Run a JSON macro script
+    diagnose        Collect status, resource-pack, log, and screenshot diagnostics
     server          Server connection (connect, disconnect, status)
     window          Window management (focus_grab, focus, close_screen, status)
 """
@@ -39,6 +40,7 @@ from __future__ import annotations
 import argparse
 import json
 import sys
+import time
 from pathlib import Path
 
 from .client import Client
@@ -276,6 +278,138 @@ def cmd_compare(args):
         return 0
     except Exception as e:
         output({"error": str(e)}, args.json)
+        return 1
+
+
+def _matches_pack(packs: list[dict], expected: str) -> bool:
+    expected = expected.lower()
+    for pack in packs:
+        if expected in str(pack.get("id", "")).lower():
+            return True
+        if expected in str(pack.get("name", "")).lower():
+            return True
+    return False
+
+
+def cmd_diagnose(args):
+    """Collect a compact diagnostic snapshot for automated review workflows."""
+    report: dict = {"ok": False, "checks": [], "issues": []}
+
+    def add_check(name: str, ok: bool, details: dict | None = None) -> None:
+        entry = {"name": name, "ok": ok}
+        if details:
+            entry.update(details)
+        report["checks"].append(entry)
+        if not ok:
+            report["issues"].append(name)
+
+    try:
+        deadline = time.monotonic() + (args.timeout / 1000.0)
+        host, port = get_connection(args)
+
+        last_error = None
+        status = None
+        server_status = None
+        resourcepacks: list[dict] = []
+
+        while time.monotonic() <= deadline:
+            try:
+                with Client(host, port) as mc:
+                    status = mc.status()
+                    if status.get("in_game"):
+                        server_status = mc.server_status()
+                        try:
+                            resourcepacks = mc.resourcepack_enabled()
+                        except Exception as e:
+                            last_error = f"resourcepack query failed: {e}"
+                            resourcepacks = []
+
+                        if not args.expect_resourcepack or _matches_pack(resourcepacks, args.expect_resourcepack):
+                            break
+                last_error = None
+            except Exception as e:
+                last_error = str(e)
+
+            time.sleep(args.interval / 1000.0)
+
+        if status is None:
+            add_check("client_connected", False, {"error": last_error or "timed out"})
+            output(report, args.json)
+            return 1
+
+        report["status"] = status
+        add_check("client_connected", True, {"address": f"{host}:{port}"})
+        add_check("in_game", bool(status.get("in_game")))
+
+        if server_status is not None:
+            report["server"] = server_status
+            if args.expect_server:
+                actual = str(server_status.get("server_address", "")).lower()
+                expected = args.expect_server.lower()
+                add_check("expected_server", expected in actual, {"expected": args.expect_server, "actual": actual})
+
+        report["resourcepacks"] = resourcepacks
+        if args.expect_resourcepack:
+            add_check(
+                "expected_resourcepack",
+                _matches_pack(resourcepacks, args.expect_resourcepack),
+                {"expected": args.expect_resourcepack},
+            )
+
+        with Client(host, port) as mc:
+            logs = mc.logs(level="warn", limit=args.log_limit, filter=args.log_filter)
+        report["logs"] = logs
+        bad_log_terms = ("missing", "unable to load", "failed to load", "exception", "error")
+        relevant_logs = [
+            log for log in logs
+            if any(term in str(log.get("message", "")).lower() for term in bad_log_terms)
+        ]
+        report["relevant_logs"] = relevant_logs
+        add_check("no_relevant_warnings", len(relevant_logs) == 0, {"count": len(relevant_logs)})
+
+        if args.screenshot:
+            path = Path(args.screenshot).absolute()
+            path.parent.mkdir(parents=True, exist_ok=True)
+            with Client(host, port) as mc:
+                shot = mc.screenshot(str(path), clean=args.clean, delay_ms=args.delay, settle_ms=args.settle)
+            metrics = analyze(path)
+            shot["analysis"] = metrics.to_dict()
+            shot["diagnosis"] = metrics.diagnose()
+            report["screenshot"] = shot
+            add_check("screenshot_captured", True, {"path": str(path)})
+            add_check(
+                "no_missing_texture_colors",
+                metrics.missing_texture_percent < args.missing_texture_threshold,
+                {
+                    "percent": round(metrics.missing_texture_percent, 4),
+                    "threshold": args.missing_texture_threshold,
+                },
+            )
+
+        report["ok"] = all(check.get("ok") for check in report["checks"])
+
+        if args.json:
+            output(report, True)
+        else:
+            print("Diagnostics:")
+            for check in report["checks"]:
+                status_text = "OK" if check.get("ok") else "FAIL"
+                detail = ""
+                if "count" in check:
+                    detail = f" ({check['count']})"
+                elif "path" in check:
+                    detail = f" ({check['path']})"
+                elif "percent" in check:
+                    detail = f" ({check['percent']}%)"
+                print(f"  [{status_text}] {check['name']}{detail}")
+            if relevant_logs:
+                print("Relevant logs:")
+                for log in relevant_logs[:10]:
+                    print(f"  [{log.get('level')}] {log.get('message')}")
+
+        return 0 if report["ok"] else 2
+    except Exception as e:
+        output({"error": str(e), "report": report}, args.json)
         return 1
 
 
@@ -1024,6 +1158,22 @@ def main():
     cmp_p.add_argument("image_a", help="First image")
     cmp_p.add_argument("image_b", help="Second image")
 
+    # diagnose
+    diag_p = sub.add_parser("diagnose", help="Collect status, resource-pack, log, and screenshot diagnostics")
+    diag_p.add_argument("--timeout", type=int, default=30000, help="Max wait time for readiness (ms)")
+    diag_p.add_argument("--interval", type=int, default=1000, help="Readiness polling interval (ms)")
+    diag_p.add_argument("--expect-server", help="Substring expected in the connected server address")
+    diag_p.add_argument("--expect-resourcepack", help="Substring expected in an enabled resource pack ID/name")
+    diag_p.add_argument("--screenshot", help="Optional screenshot output path")
+    diag_p.add_argument("--clean", action="store_true", help="Hide HUD for the optional screenshot")
+    diag_p.add_argument("--delay", type=int, default=0, help="Delay before optional screenshot (ms)")
+    diag_p.add_argument("--settle", type=int, default=300, help="Settle time for optional screenshot (ms)")
+    diag_p.add_argument("--missing-texture-threshold", type=float, default=0.5,
+                        help="Fail screenshot check at or above this black/purple pixel percent")
+    diag_p.add_argument("--log-limit", type=int, default=200, help="Max warning/error logs to inspect")
+    diag_p.add_argument("--log-filter", default="resource|pack|model|texture|font|item|error|exception|missing|failed",
+                        help="Regex filter for diagnostic logs")
+
     # teleport
     tp_p = sub.add_parser("teleport", help="Teleport player")
     tp_p.add_argument("x", type=float)
@@ -1158,6 +1308,7 @@ def main():
         "capture": cmd_capture,
         "analyze": cmd_analyze,
         "compare": cmd_compare,
+        "diagnose": cmd_diagnose,
         "teleport": cmd_teleport,
         "time": cmd_time,
         "perf": cmd_perf,
