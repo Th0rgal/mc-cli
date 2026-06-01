@@ -13,6 +13,9 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Optional
 
+MISSING_TEXTURE_POSSIBLE_PERCENT = 0.5
+MISSING_TEXTURE_LIKELY_PERCENT = 2.0
+
 
 @dataclass
 class ImageMetrics:
@@ -57,7 +60,8 @@ class ImageMetrics:
             "missing_texture": {
                 "pixels": self.missing_texture_pixels,
                 "percent": round(self.missing_texture_percent, 4),
-                "likely": self.missing_texture_percent >= 0.5,
+                "possible": self.missing_texture_percent >= MISSING_TEXTURE_POSSIBLE_PERCENT,
+                "likely": self.missing_texture_percent >= MISSING_TEXTURE_LIKELY_PERCENT,
             },
             "dimensions": {"width": self.width, "height": self.height},
             "path": self.path,
@@ -105,11 +109,11 @@ class ImageMetrics:
         elif self.color_temp > 0.7:
             issues.append("VERY_COOL: Strong cool/blue color cast")
 
-        if self.missing_texture_percent >= 2.0:
+        if self.missing_texture_percent >= MISSING_TEXTURE_LIKELY_PERCENT:
             issues.append(
                 f"MISSING_TEXTURE_LIKELY: {self.missing_texture_percent:.2f}% pixels match black/purple missing-texture colors"
             )
-        elif self.missing_texture_percent >= 0.5:
+        elif self.missing_texture_percent >= MISSING_TEXTURE_POSSIBLE_PERCENT:
             issues.append(
                 f"MISSING_TEXTURE_POSSIBLE: {self.missing_texture_percent:.2f}% pixels match black/purple missing-texture colors"
             )
