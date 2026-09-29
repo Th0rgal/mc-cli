@@ -3,6 +3,7 @@ package dev.mccli.commands;
 import com.google.gson.JsonObject;
 import dev.mccli.util.ItemJson;
 import dev.mccli.util.MainThreadExecutor;
+import dev.mccli.util.McNames;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.client.network.ClientPlayerInteractionManager;
@@ -93,7 +94,7 @@ public class InteractCommand implements Command {
         ActionResult result = interactionManager.interactItem(player, hand);
 
         JsonObject response = new JsonObject();
-        response.addProperty("result", result.toString());
+        response.addProperty("result", McNames.actionResult(result));
         response.add("item", ItemJson.fromStack(stack, false));
         return response;
     }
@@ -164,7 +165,7 @@ public class InteractCommand implements Command {
         }
 
         JsonObject response = new JsonObject();
-        response.addProperty("result", result.toString());
+        response.addProperty("result", McNames.actionResult(result));
         response.add("item", ItemJson.fromStack(stack, false));
 
         JsonObject blockPosJson = new JsonObject();
@@ -205,7 +206,7 @@ public class InteractCommand implements Command {
         }
 
         JsonObject response = new JsonObject();
-        response.addProperty("result", result.toString());
+        response.addProperty("result", McNames.actionResult(result));
         response.add("entity", entityJson(entity));
         return response;
     }

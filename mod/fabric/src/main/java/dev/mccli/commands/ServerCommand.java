@@ -11,6 +11,7 @@ import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.client.world.ClientWorld;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -157,8 +158,15 @@ public class ServerCommand implements Command {
             boolean wasMultiplayer = !client.isIntegratedServerRunning();
             String worldName = wasMultiplayer ? "multiplayer" : "singleplayer";
 
+            // Close the connection first, like the pause menu's quit button does. Without it
+            // the integrated server never stops and disconnect(Screen, boolean) spins forever
+            // waiting for IntegratedServer.isStopping().
+            client.world.disconnect(ClientWorld.QUITTING_MULTIPLAYER_TEXT);
             // Disconnect and return to title screen (1.21.11 requires a Screen parameter)
             client.disconnect(new TitleScreen(), false);
+
+            // Reset resource pack policy for the next connection
+            ServerResourcePackHandler.reset();
 
             result.addProperty("success", true);
             result.addProperty("disconnected", true);

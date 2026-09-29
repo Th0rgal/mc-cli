@@ -2,6 +2,7 @@ package dev.mccli.commands;
 
 import com.google.gson.JsonObject;
 import dev.mccli.util.MainThreadExecutor;
+import dev.mccli.util.McNames;
 import dev.mccli.util.WindowFocusManager;
 import net.minecraft.client.MinecraftClient;
 import org.lwjgl.glfw.GLFW;
@@ -129,7 +130,7 @@ public class WindowCommand implements Command {
             JsonObject response = new JsonObject();
 
             if (client.currentScreen != null) {
-                String screenType = client.currentScreen.getClass().getSimpleName();
+                String screenType = McNames.screen(client.currentScreen);
                 client.setScreen(null);
                 response.addProperty("closed", true);
                 response.addProperty("screen_type", screenType);
@@ -161,7 +162,7 @@ public class WindowCommand implements Command {
             response.addProperty("screen_open", client.currentScreen != null);
 
             if (client.currentScreen != null) {
-                response.addProperty("screen_type", client.currentScreen.getClass().getSimpleName());
+                response.addProperty("screen_type", McNames.screen(client.currentScreen));
             }
 
             return response;
