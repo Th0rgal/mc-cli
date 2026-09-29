@@ -1,0 +1,27 @@
+{
+  "schemaVersion": 1,
+  "id": "mccli",
+  "version": "${version}",
+  "name": "MC-CLI",
+  "description": "Minecraft Command-Line Interface for LLM-Assisted Shader Development",
+  "authors": ["MC-CLI Contributors"],
+  "contact": {
+    "sources": "https://github.com/Th0rgal/mc-cli",
+    "issues": "https://github.com/Th0rgal/mc-cli/issues"
+  },
+  "license": "MIT",
+  "environment": "client",
+  "entrypoints": {
+    "client": ["dev.mccli.fabric.McCliFabric"]
+  },
+  "mixins": ["mccli.mixins.json"],
+  "depends": {
+    "fabricloader": ">=${loader_version}",
+    "minecraft": "${minecraft_dep}",
+    "java": ">=25",
+    "fabric-api": "*"
+  },
+  "suggests": {
+    "iris": "*"
+  }
+}

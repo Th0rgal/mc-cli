@@ -902,14 +902,30 @@ class Client:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data
 
-    def world_create(self) -> dict:
+    def world_create(self, name: Optional[str] = None, seed: Optional[str] = None,
+                     game_mode: Optional[str] = None) -> dict:
         """
-        Open the world selection/creation screen.
+        Open the world selection/creation screen, or create a world directly.
+
+        Args:
+            name: If given (Minecraft 26.x mods), create and join a new world with
+                this name without GUI interaction. Older mods ignore it and open
+                the selection screen.
+            seed: Optional world seed (direct creation only)
+            game_mode: survival | creative | adventure | spectator (default: creative)
 
         Returns:
-            dict with {success: bool, screen_opened: bool}
+            dict with {success: bool, screen_opened: bool} (screen mode) or
+            {success, name, display_name, game_mode, created, loading} (direct creation)
         """
-        result = self._send("world", {"action": "create"})
+        params = {"action": "create"}
+        if name:
+            params["name"] = name
+        if seed is not None:
+            params["seed"] = str(seed)
+        if game_mode:
+            params["game_mode"] = game_mode
+        result = self._send("world", params)
         if not result.success:
             raise RuntimeError(f"Command failed: {result.error}")
         return result.data

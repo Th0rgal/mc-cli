@@ -17,11 +17,15 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # Java 21 builds the 1.21.x modules (toolchain); Java 25 runs Gradle/Loom 1.18 and
+      # builds the Minecraft 26.x modules. The last listed version becomes JAVA_HOME.
       - name: Setup Java
         uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: |
+            21
+            25
 
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
@@ -29,6 +33,11 @@ jobs:
       - name: Build mods
         working-directory: mod
         run: ./gradlew build
+
+      # 26.2 jars are built from the same 26.x sources
+      - name: Build Minecraft 26.2 mods
+        working-directory: mod
+        run: ./gradlew :fabric-26:build :neoforge-26:build -Pmc26_version=26.2
 
       - name: Get version from tag
         id: version
@@ -43,7 +52,10 @@ jobs:
         run: |
           mkdir -p release-files
           cp mod/fabric/build/libs/mccli-fabric-*.jar release-files/
+          cp mod/fabric-1.21.4/build/libs/mccli-fabric-1.21.4-*.jar release-files/
           cp mod/neoforge/build/libs/mccli-neoforge-*.jar release-files/
+          cp mod/fabric-26/build/libs/mccli-fabric-26.*.jar release-files/
+          cp mod/neoforge-26/build/libs/mccli-neoforge-26.*.jar release-files/
           # Remove sources and javadoc jars if present
           rm -f release-files/*-sources.jar release-files/*-javadoc.jar
 
@@ -86,20 +98,32 @@ jobs:
 
             Download the appropriate JAR for your modloader and place it in your Minecraft mods folder.
 
-            ### Fabric
-            **Requirements:**
-            - Minecraft 1.21.11
+            ### Minecraft 26.3 / 26.2 (Java 25)
+
+            Full command set on both loaders.
+
+            **Fabric** - `mccli-fabric-26.3-*.jar` or `mccli-fabric-26.2-*.jar`
+            - Minecraft 26.3 or 26.2 (pick the matching jar)
+            - Fabric Loader 0.19.5+
+            - [Fabric API](https://modrinth.com/mod/fabric-api) 0.161.0+
+
+            **NeoForge** - `mccli-neoforge-26.3-*.jar` or `mccli-neoforge-26.2-*.jar`
+            - Minecraft 26.3 (NeoForge 26.3.0+) or 26.2 (NeoForge 26.2.0+)
+
+            ### Minecraft 1.21.11 (Java 21)
+
+            **NeoForge** - `mccli-neoforge-<version>.jar` (full command set)
+            - NeoForge 21.11.0+
+
+            **Fabric** - `mccli-fabric-<version>.jar` (core commands)
             - Fabric Loader 0.18.1+
             - [Fabric API](https://modrinth.com/mod/fabric-api)
 
-            Download: `mccli-fabric-*.jar`
+            ### Minecraft 1.21.4 (Java 21)
 
-            ### NeoForge
-            **Requirements:**
-            - Minecraft 1.21.11
-            - NeoForge 21.11.0+
-
-            Download: `mccli-neoforge-*.jar`
+            **Fabric** - `mccli-fabric-1.21.4-*.jar` (core commands)
+            - Fabric Loader 0.18.4+
+            - [Fabric API](https://modrinth.com/mod/fabric-api)
 
             ## Installation
 
