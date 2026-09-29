@@ -109,6 +109,9 @@ public final class HeadlessMode {
                 + "On NeoForge set earlyWindowControl = false in config/fml.toml to avoid this.");
         }
         Platform.hideWindow(handle);
+        // NeoForge's early loading window turns the process into a regular (Dock) app before any
+        // mod runs; switch back to a background app now that the window is hidden.
+        MacosApp.makeBackgroundApp();
     }
 
     /** Called every client tick (main thread). */
@@ -157,6 +160,7 @@ public final class HeadlessMode {
         if (handle != 0L) {
             Platform.hideWindow(handle);
         }
+        MacosApp.makeBackgroundApp();
         McCliMod.LOGGER.info("[headless] Window hidden");
     }
 
