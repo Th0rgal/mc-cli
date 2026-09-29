@@ -25,14 +25,14 @@ public class CommandDispatcher {
         register(new TimeCommand());
         register(new ExecuteCommand());
 
-        // Server connection commands
-        register(new ServerCommand());
-
         // Shader commands
         register(new ShaderCommand());
 
         // Resource pack commands
         register(new ResourcePackCommand());
+
+        // Chat commands
+        register(new ChatCommand());
 
         // Visual commands
         register(new ScreenshotCommand());
@@ -40,6 +40,24 @@ public class CommandDispatcher {
         // Debugging commands
         register(new PerfCommand());
         register(new LogsCommand());
+
+        // Inspection commands
+        register(new ItemCommand());
+        register(new InventoryCommand());
+        register(new BlockCommand());
+        register(new EntityCommand());
+
+        // Interaction commands
+        register(new InteractCommand());
+
+        // Server connection commands
+        register(new ServerCommand());
+
+        // Window management commands
+        register(new WindowCommand());
+
+        // World management commands
+        register(new WorldCommand());
 
         McCliMod.LOGGER.info("Registered {} commands", commands.size());
     }
