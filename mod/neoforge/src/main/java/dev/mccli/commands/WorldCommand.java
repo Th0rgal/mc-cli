@@ -201,11 +201,13 @@ public class WorldCommand implements Command {
 
                 McCliMod.LOGGER.info("Loading world: {} ({})", displayName, worldName);
 
-                // Start the world using the world open flows API
-                client.createWorldOpenFlows().openWorld(worldName, () -> {
+                // Start the world on a later main-thread task: openWorld() blocks the render thread
+                // until the integrated server is up, which would otherwise hold this response
+                // past the CLI's socket timeout.
+                client.schedule(() -> client.createWorldOpenFlows().openWorld(worldName, () -> {
                     // Called when loading fails - return to title
                     client.setScreen(new TitleScreen());
-                });
+                }));
 
                 result.addProperty("success", true);
                 result.addProperty("name", worldName);
