@@ -39,7 +39,7 @@ The NeoForge version includes additional features through mixins for chat captur
 | `inventory [--section ...]` | List inventory contents |
 | `block [--x y z]` | Probe targeted or specific block |
 | `entity` | Probe targeted entity |
-| `interact use\|use_on_block\|attack\|drop\|swap\|select` | Player interactions |
+| `interact use\|use_on_block\|use_on_entity\|attack\|drop\|swap\|select` | Player interactions |
 | `window focus_grab\|pause_on_lost_focus\|focus\|close_screen\|status` | Window management |
 | `world list\|load\|create\|delete` | Singleplayer world management |
 | `macro file.json` | Run a JSON macro script |
@@ -967,9 +967,33 @@ mccli interact use_on_block --x 10 --y 64 --z -20 --face up
 }
 ```
 
+### interact use_on_entity
+
+Use item on an entity (right-click on entity). Works on interaction entities, so it can click furniture. NeoForge only.
+
+```bash
+# Use on the entity under the crosshair
+mccli interact use_on_entity
+
+# Use on a specific entity by network id
+mccli interact use_on_entity --entity-id 42
+```
+
+**Arguments:**
+- `--hand` - main | off (default: main)
+- `--entity-id` - entity network id (optional, uses the crosshair target if not specified)
+
+**Response:**
+```json
+{
+  "result": "Success[...]",
+  "entity": {"id": 42, "type": "entity.minecraft.interaction", "uuid": "..."}
+}
+```
+
 ### interact attack
 
-Attack/swing (left-click). Can target air or a specific block.
+Attack/swing (left-click). Can target air, a specific block, or an entity.
 
 ```bash
 # Swing in air
@@ -977,12 +1001,17 @@ mccli interact attack
 
 # Attack a specific block
 mccli interact attack --target block --x 10 --y 64 --z -20
+
+# Attack the entity under the crosshair, or one by network id
+mccli interact attack --target entity
+mccli interact attack --target entity --entity-id 42
 ```
 
 **Arguments:**
-- `--target` - air | block (default: air)
+- `--target` - air | block | entity (default: air)
 - `--x --y --z` - block position (for block target)
 - `--face` - block face (default: up)
+- `--entity-id` - entity network id (for entity target, optional, uses the crosshair target if not specified)
 
 **Response:**
 ```json
