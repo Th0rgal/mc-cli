@@ -22,6 +22,7 @@ import java.util.function.Supplier;
  */
 public class MainThreadExecutor {
     private static final ConcurrentLinkedQueue<Task<?>> taskQueue = new ConcurrentLinkedQueue<>();
+    private static final ConcurrentLinkedQueue<Runnable> nextTickQueue = new ConcurrentLinkedQueue<>();
 
     private static class Task<T> {
         final Supplier<T> supplier;
@@ -61,7 +62,29 @@ public class MainThreadExecutor {
     /**
      * Process all pending tasks. Called from the client tick event.
      */
+    /**
+     * Run an action on the main thread at the start of the next client tick.
+     *
+     * Use this for operations that block the main thread for a long time (joining or
+     * leaving a world): the command returns its JSON response first, then the blocking
+     * work starts, so the CLI does not time out waiting for a response.
+     */
+    public static void runNextTick(Runnable runnable) {
+        nextTickQueue.add(runnable);
+    }
+
     public static void processPendingTasks() {
+        // Deferred actions queued during a previous tick (responses already sent)
+        int deferred = nextTickQueue.size();
+        Runnable action;
+        while (deferred-- > 0 && (action = nextTickQueue.poll()) != null) {
+            try {
+                action.run();
+            } catch (Exception e) {
+                McCliMod.LOGGER.error("Deferred task execution failed", e);
+            }
+        }
+
         Task<?> task;
         int processed = 0;
 

@@ -6,6 +6,7 @@ import dev.mccli.util.MainThreadExecutor;
 import dev.mccli.util.ServerResourcePackHandler;
 import dev.mccli.util.SessionRefreshHelper;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -157,11 +158,19 @@ public class ServerCommand implements Command {
             boolean wasMultiplayer = !client.hasSingleplayerServer();
             String worldName = wasMultiplayer ? "multiplayer" : "singleplayer";
 
-            // Disconnect and return to title screen (1.21.11 requires a Screen parameter)
-            client.disconnect(new TitleScreen(), false);
-
             // Reset resource pack policy and loader state
             ServerResourcePackHandler.reset();
+
+            // Disconnect on the next tick so this response is sent first: leaving a
+            // singleplayer world blocks the main thread while the integrated server saves.
+            // Like the pause menu's quit button, disconnect the level/connection first;
+            // otherwise the client waits forever for the integrated server to stop.
+            MainThreadExecutor.runNextTick(() -> {
+                if (client.level != null) {
+                    client.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE);
+                }
+                client.disconnect(new TitleScreen(), false);
+            });
             // Note: clearServerPacks() may not exist in this API version
             // The downloaded pack source will be cleared automatically on disconnect
 

@@ -203,8 +203,9 @@ public class WorldCommand implements Command {
             LevelSettings settings = new LevelSettings(
                 name, gameType, LevelSettings.DifficultySettings.DEFAULT,
                 true, WorldDataConfiguration.DEFAULT);
-            client.createWorldOpenFlows().createFreshLevel(
-                levelId, settings, worldOptions, WorldPresets::createNormalWorldDimensions, new TitleScreen());
+            // Create on the next tick so this response is sent first (creation blocks the main thread)
+            MainThreadExecutor.runNextTick(() -> client.createWorldOpenFlows().createFreshLevel(
+                levelId, settings, worldOptions, WorldPresets::createNormalWorldDimensions, new TitleScreen()));
 
             result.addProperty("success", true);
             result.addProperty("name", levelId);
@@ -279,11 +280,13 @@ public class WorldCommand implements Command {
 
                 McCliMod.LOGGER.info("Loading world: {} ({})", displayName, worldName);
 
-                // Start the world using the world open flows API
-                client.createWorldOpenFlows().openWorld(worldName, () -> {
-                    // Called when loading fails - return to title
-                    ClientCompat.setScreen(client, new TitleScreen());
-                });
+                // Start the world on the next tick so this response is sent first:
+                // loading blocks the main thread until the world is joined.
+                MainThreadExecutor.runNextTick(() ->
+                    client.createWorldOpenFlows().openWorld(worldName, () -> {
+                        // Called when loading fails - return to title
+                        ClientCompat.setScreen(client, new TitleScreen());
+                    }));
 
                 result.addProperty("success", true);
                 result.addProperty("name", worldName);
