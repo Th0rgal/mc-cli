@@ -20,7 +20,8 @@ import java.util.UUID;
 /**
  * Mixin to intercept server resource pack prompts and auto-accept/reject based on policy.
  *
- * For auto-accept: Cancel the default handler, call acceptAll() then add the pack.
+ * For auto-accept: Cancel the default handler, allow server packs, then push the pack.
+ * The pack manager sends the ACCEPTED/DOWNLOADED/SUCCESSFULLY_LOADED statuses itself.
  * For auto-reject: Send decline status and cancel the handler.
  */
 @Mixin(ClientCommonPacketListenerImpl.class)
@@ -44,9 +45,6 @@ public abstract class ClientCommonNetworkHandlerMixin {
         if (ServerResourcePackHandler.shouldAccept()) {
             McCliMod.LOGGER.info("Auto-accepting server resource pack: {} (required: {})", urlString, required);
 
-            // Send ACCEPTED status to server immediately (protocol expects ACCEPTED before download)
-            send(new ServerboundResourcePackPacket(packId, ServerboundResourcePackPacket.Action.ACCEPTED));
-
             Minecraft client = Minecraft.getInstance();
 
             // Schedule download on the main thread to ensure proper initialization
@@ -54,7 +52,9 @@ public abstract class ClientCommonNetworkHandlerMixin {
                 try {
                     DownloadedPackSource loader = client.getDownloadedPackSource();
 
-                    // Call pushPack to download and apply the resource pack
+                    // Without allowServerPacks() the pack manager keeps the pack pending,
+                    // as if the prompt were still open, and never downloads it.
+                    loader.allowServerPacks();
                     URL url = new URL(urlString);
                     // The API expects String hash, not HashCode
                     loader.pushPack(packId, url, hash);

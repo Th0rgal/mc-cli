@@ -28,7 +28,7 @@ Commands:
     inventory       List inventory contents
     block           Probe targeted or specific block
     entity          Probe targeted entity
-    interact        Player interactions (use, use_on_block, attack, drop, swap, select)
+    interact        Player interactions (use, use_on_block, use_on_entity, attack, drop, swap, select)
     macro           Run a JSON macro script
     server          Server connection (connect, disconnect, status)
     window          Window management (focus_grab, focus, close_screen, status)
@@ -923,6 +923,14 @@ def cmd_interact(args):
                     pos = data.get("block_pos", {})
                     print(f"Used {item_name} on block at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}: {data.get('result')}")
 
+            elif args.action == "use_on_entity":
+                data = mc.interact_use_on_entity(hand=args.hand, entity_id=args.entity_id)
+                if args.json:
+                    output(data, True)
+                else:
+                    entity = data.get("entity", {})
+                    print(f"Used on {entity.get('type')} #{entity.get('id')}: {data.get('result')}")
+
             elif args.action == "attack":
                 x = args.x if hasattr(args, 'x') else None
                 y = args.y if hasattr(args, 'y') else None
@@ -930,12 +938,16 @@ def cmd_interact(args):
                 data = mc.interact_attack(
                     target=args.target,
                     x=x, y=y, z=z,
-                    face=args.face
+                    face=args.face,
+                    entity_id=args.entity_id
                 )
                 if args.json:
                     output(data, True)
                 else:
-                    if args.target == "block":
+                    if args.target == "entity":
+                        entity = data.get("entity", {})
+                        print(f"Attacked {entity.get('type')} #{entity.get('id')}: {data.get('result')}")
+                    elif args.target == "block":
                         pos = data.get("block_pos", {})
                         print(f"Attacked block at {pos.get('x')}, {pos.get('y')}, {pos.get('z')}: {data.get('result')}")
                     else:
@@ -1124,7 +1136,7 @@ def main():
 
     # interact
     interact_p = sub.add_parser("interact", help="Player interactions (use items, place blocks, etc.)")
-    interact_p.add_argument("action", choices=["use", "use_on_block", "attack", "drop", "swap", "select"],
+    interact_p.add_argument("action", choices=["use", "use_on_block", "use_on_entity", "attack", "drop", "swap", "select"],
                             help="Interaction action")
     interact_p.add_argument("--hand", default="main", choices=["main", "off"],
                             help="Hand to use (default: main)")
@@ -1135,7 +1147,9 @@ def main():
                             help="Block face to interact with (default: up)")
     interact_p.add_argument("--inside-block", action="store_true",
                             help="Click position inside block (for use_on_block)")
-    interact_p.add_argument("--target", default="air", choices=["air", "block"],
+    interact_p.add_argument("--entity-id", type=int, dest="entity_id",
+                            help="Entity network id for use_on_entity / attack --target entity (default: crosshair)")
+    interact_p.add_argument("--target", default="air", choices=["air", "block", "entity"],
                             help="Attack target type (default: air)")
     interact_p.add_argument("--slot", type=int, help="Inventory slot for drop action")
     interact_p.add_argument("--all", action="store_true", help="Drop entire stack")

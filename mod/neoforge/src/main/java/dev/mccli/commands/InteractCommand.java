@@ -13,7 +13,9 @@ import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.inventory.ClickType;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.Entity;
 import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.EntityHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -45,7 +47,7 @@ public class InteractCommand implements Command {
     public CompletableFuture<JsonObject> execute(JsonObject params) {
         String action = params.has("action") ? params.get("action").getAsString() : "use";
 
-        if (!List.of("use", "use_on_block", "attack", "drop", "swap", "select").contains(action)) {
+        if (!List.of("use", "use_on_block", "use_on_entity", "attack", "drop", "swap", "select").contains(action)) {
             CompletableFuture<JsonObject> future = new CompletableFuture<>();
             future.completeExceptionally(new IllegalArgumentException("Unknown action: " + action));
             return future;
@@ -64,6 +66,7 @@ public class InteractCommand implements Command {
             return switch (action) {
                 case "use" -> handleUse(params, client, player, interactionManager);
                 case "use_on_block" -> handleUseOnBlock(params, client, player, world, interactionManager);
+                case "use_on_entity" -> handleUseOnEntity(params, client, player, world, interactionManager);
                 case "attack" -> handleAttack(params, client, player, world, interactionManager);
                 case "drop" -> handleDrop(params, player, interactionManager);
                 case "swap" -> handleSwap(params, player, interactionManager);
@@ -175,10 +178,67 @@ public class InteractCommand implements Command {
     }
 
     /**
+     * Use item on an entity (right-click on entity), the way vanilla does:
+     * interactAt first, then interact when the entity did not consume the click.
+     *
+     * Params:
+     * - hand: "main" | "off" (default: "main")
+     * - entity_id: target entity network id (optional, uses crosshair target if not specified)
+     *
+     * Response:
+     * - result: action result
+     * - entity: {id, type, uuid}
+     */
+    private JsonObject handleUseOnEntity(JsonObject params, Minecraft client, LocalPlayer player,
+                                          ClientLevel world, MultiPlayerGameMode interactionManager) {
+        InteractionHand hand = getHand(params);
+        Entity entity = resolveEntity(params, client, world);
+        EntityHitResult hit = client.hitResult instanceof EntityHitResult crosshair && crosshair.getEntity() == entity
+            ? crosshair
+            : new EntityHitResult(entity, entity.getBoundingBox().getCenter());
+
+        InteractionResult result = interactionManager.interactAt(player, entity, hit, hand);
+        if (!result.consumesAction()) {
+            result = interactionManager.interact(player, entity, hand);
+        }
+        if (result.consumesAction()) {
+            player.swing(hand);
+        }
+
+        JsonObject response = new JsonObject();
+        response.addProperty("result", result.toString());
+        response.add("entity", entityJson(entity));
+        return response;
+    }
+
+    private static Entity resolveEntity(JsonObject params, Minecraft client, ClientLevel world) {
+        if (params.has("entity_id")) {
+            Entity entity = world.getEntity(params.get("entity_id").getAsInt());
+            if (entity == null) {
+                throw new IllegalStateException("No entity with id " + params.get("entity_id").getAsInt());
+            }
+            return entity;
+        }
+        if (client.hitResult instanceof EntityHitResult entityHit) {
+            return entityHit.getEntity();
+        }
+        throw new IllegalStateException("No entity targeted - provide entity_id or look at an entity");
+    }
+
+    private static JsonObject entityJson(Entity entity) {
+        JsonObject json = new JsonObject();
+        json.addProperty("id", entity.getId());
+        json.addProperty("type", entity.getType().toString());
+        json.addProperty("uuid", entity.getUUID().toString());
+        return json;
+    }
+
+    /**
      * Attack / left-click action.
      *
      * Params:
-     * - target: "block" | "air" (default: "air" - swings arm)
+     * - target: "block" | "entity" | "air" (default: "air" - swings arm)
+     * - entity_id: entity network id (for target="entity", optional - uses crosshair if not specified)
      * - x, y, z: block position (for target="block", optional - uses crosshair if not specified)
      * - face: block face: "up" | "down" | "north" | "south" | "east" | "west" (default: "up")
      *
@@ -191,7 +251,13 @@ public class InteractCommand implements Command {
 
         JsonObject response = new JsonObject();
 
-        if (target.equals("block")) {
+        if (target.equals("entity")) {
+            Entity entity = resolveEntity(params, client, world);
+            interactionManager.attack(player, entity);
+            player.swing(InteractionHand.MAIN_HAND);
+            response.addProperty("result", "ATTACKED");
+            response.add("entity", entityJson(entity));
+        } else if (target.equals("block")) {
             BlockPos targetPos;
             Direction face;
 

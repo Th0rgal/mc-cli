@@ -62,6 +62,9 @@ public class ServerCommand implements Command {
 
         String addressStr = params.get("address").getAsString();
         int port = params.has("port") ? params.get("port").getAsInt() : 25565;
+        String resourcepackPolicy = params.has("resourcepack_policy")
+            ? params.get("resourcepack_policy").getAsString()
+            : "prompt";
         boolean shouldRefreshSession = params.has("refresh_session")
             && params.get("refresh_session").getAsBoolean();
 
@@ -73,14 +76,14 @@ public class ServerCommand implements Command {
             return SessionRefreshHelper.refreshSession().thenCompose(refreshResult -> {
                 // Proceed with connection regardless of refresh result
                 // (user may want to try anyway, or it might still work)
-                return doConnect(fullAddress, refreshResult.success());
+                return doConnect(fullAddress, resourcepackPolicy, refreshResult.success());
             });
         }
 
-        return doConnect(fullAddress, false);
+        return doConnect(fullAddress, resourcepackPolicy, false);
     }
 
-    private CompletableFuture<JsonObject> doConnect(String fullAddress, boolean sessionRefreshed) {
+    private CompletableFuture<JsonObject> doConnect(String fullAddress, String resourcepackPolicy, boolean sessionRefreshed) {
         return MainThreadExecutor.submit(() -> {
             MinecraftClient client = MinecraftClient.getInstance();
             JsonObject result = new JsonObject();
@@ -99,6 +102,12 @@ public class ServerCommand implements Command {
                     serverAddress.getAddress() + ":" + serverAddress.getPort(),
                     ServerInfo.ServerType.OTHER
                 );
+                // Vanilla reads this policy when the server pushes a pack: ENABLED downloads it without a prompt
+                serverInfo.setResourcePackPolicy(switch (resourcepackPolicy.toLowerCase()) {
+                    case "accept" -> ServerInfo.ResourcePackPolicy.ENABLED;
+                    case "reject" -> ServerInfo.ResourcePackPolicy.DISABLED;
+                    default -> ServerInfo.ResourcePackPolicy.PROMPT;
+                });
 
                 // Start connection
                 ConnectScreen.connect(
@@ -113,6 +122,7 @@ public class ServerCommand implements Command {
                 result.addProperty("success", true);
                 result.addProperty("connecting", true);
                 result.addProperty("address", serverAddress.getAddress());
+                result.addProperty("resourcepack_policy", resourcepackPolicy);
                 result.addProperty("port", serverAddress.getPort());
                 if (sessionRefreshed) {
                     result.addProperty("session_refreshed", true);

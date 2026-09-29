@@ -715,26 +715,46 @@ class Client:
             params["z"] = z
         return self.command("interact", params)
 
+    def interact_use_on_entity(self, hand: str = "main", entity_id: Optional[int] = None) -> dict:
+        """
+        Use item on an entity (right-click on entity).
+
+        Args:
+            hand: "main" or "off" (default: "main")
+            entity_id: Target entity network id (optional, uses crosshair if not specified)
+
+        Returns:
+            dict with {result: str, entity: {id, type, uuid}}
+        """
+        params: dict[str, Any] = {"action": "use_on_entity", "hand": hand}
+        if entity_id is not None:
+            params["entity_id"] = entity_id
+        return self.command("interact", params)
+
     def interact_attack(
         self,
         target: str = "air",
         x: Optional[int] = None,
         y: Optional[int] = None,
         z: Optional[int] = None,
-        face: str = "up"
+        face: str = "up",
+        entity_id: Optional[int] = None
     ) -> dict:
         """
         Attack / left-click action.
 
         Args:
-            target: "block" or "air" (default: "air" - swings arm)
+            target: "block", "entity" or "air" (default: "air" - swings arm)
             x, y, z: Block position for target="block" (optional)
             face: Block face (default: "up")
+            entity_id: Entity network id for target="entity" (optional, uses crosshair if not specified)
 
         Returns:
-            dict with {result: str, block_pos?: {x, y, z}}
+            dict with {result: str, block_pos?: {x, y, z}, entity?: {id, type, uuid}}
         """
         params: dict[str, Any] = {"action": "attack", "target": target, "face": face}
+        if entity_id is not None:
+            params["entity_id"] = entity_id
         if x is not None and y is not None and z is not None:
             params["x"] = x
             params["y"] = y

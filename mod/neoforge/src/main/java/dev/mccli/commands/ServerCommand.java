@@ -108,6 +108,11 @@ public class ServerCommand implements Command {
                     serverAddress.getHost() + ":" + serverAddress.getPort(),
                     ServerData.Type.OTHER
                 );
+                serverData.setResourcePackStatus(switch (ServerResourcePackHandler.getPolicy()) {
+                    case ACCEPT -> ServerData.ServerPackStatus.ENABLED;
+                    case REJECT -> ServerData.ServerPackStatus.DISABLED;
+                    case PROMPT -> ServerData.ServerPackStatus.PROMPT;
+                });
 
                 // Start connection
                 ConnectScreen.startConnecting(
