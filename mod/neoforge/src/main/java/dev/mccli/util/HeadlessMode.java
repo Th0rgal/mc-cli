@@ -127,6 +127,16 @@ public final class HeadlessMode {
                 McCliMod.LOGGER.info("[headless] Headless mode enabled: window hidden, {} fps, {}x{} framebuffer",
                     FPS, WIDTH, HEIGHT);
             }
+            if (hidden) {
+                // Startup is finished: make sure nothing (e.g. the NeoForge early window handoff) left
+                // the window visible or the process as a regular macOS app with a Dock icon.
+                long handle = handle(client);
+                if (handle != 0L && isVisible(handle)) {
+                    McCliMod.LOGGER.warn("[headless] Game window became visible during startup; hiding it");
+                    GLFW.glfwHideWindow(handle);
+                }
+                MacosApp.makeBackgroundApp();
+            }
         }
         if (hidden && !sizeApplied) {
             sizeApplied = true;
