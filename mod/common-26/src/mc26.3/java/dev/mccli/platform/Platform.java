@@ -24,6 +24,21 @@ public final class Platform {
         SDLVideo.SDL_ShowWindow(windowHandle);
     }
 
+    /** Hide the window (headless mode). */
+    public static void hideWindow(long windowHandle) {
+        SDLVideo.SDL_HideWindow(windowHandle);
+    }
+
+    /** Whether the window is currently shown by the OS. */
+    public static boolean isWindowVisible(long windowHandle) {
+        return (SDLVideo.SDL_GetWindowFlags(windowHandle) & SDLVideo.SDL_WINDOW_HIDDEN) == 0L;
+    }
+
+    /** Resize the window (logical size; the framebuffer follows the display pixel density). */
+    public static void setWindowSize(long windowHandle, int width, int height) {
+        SDLVideo.SDL_SetWindowSize(windowHandle, width, height);
+    }
+
     /** Swing the arm for a use/right-click action, as vanilla does. */
     public static void swingUse(LocalPlayer player, InteractionHand hand) {
         player.swing(hand, player.getItemInHand(hand).getInteractAnimation(), false);

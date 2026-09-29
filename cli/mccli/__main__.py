@@ -31,7 +31,7 @@ Commands:
     interact        Player interactions (use, use_on_block, use_on_entity, attack, drop, swap, select)
     macro           Run a JSON macro script
     server          Server connection (connect, disconnect, status)
-    window          Window management (focus_grab, focus, close_screen, status)
+    window          Window management (hide, show, focus_grab, focus, close_screen, status)
 """
 
 from __future__ import annotations
@@ -94,6 +94,7 @@ def cmd_instances(args):
                         "pid": i.pid,
                         "address": i.address,
                         "alive": i.is_alive(),
+                        "headless": i.headless,
                     }
                     for i in instances
                 ],
@@ -107,7 +108,8 @@ def cmd_instances(args):
                 print(f"MC-CLI instances ({len(instances)}):")
                 for i in instances:
                     status = "" if i.is_alive() else " [dead]"
-                    print(f"  {i.name}: {i.address} (pid: {i.pid}){status}")
+                    headless = " [headless]" if i.headless else ""
+                    print(f"  {i.name}: {i.address} (pid: {i.pid}){headless}{status}")
 
         return 0
     except Exception as e:
@@ -753,6 +755,26 @@ def cmd_server(args):
         return 1
 
 
+def print_window_status(data: dict) -> None:
+    """Human readable window status (shared by status/hide/show)."""
+    if "headless" in data:
+        print(f"Headless: {'yes' if data.get('headless') else 'no'}")
+    if "visible" in data:
+        print(f"Visible: {'yes' if data.get('visible') else 'no'}")
+    focus_status = "enabled" if data.get("focus_grab_enabled") else "disabled"
+    pause_status = "enabled" if data.get("pause_on_lost_focus_enabled") else "disabled"
+    print(f"Focus grab: {focus_status}")
+    print(f"Pause on lost focus: {pause_status}")
+    if "sound_muted" in data:
+        print(f"Sound muted: {'yes' if data.get('sound_muted') else 'no'}")
+    if "framebuffer_width" in data:
+        print(f"Framebuffer: {data.get('framebuffer_width')}x{data.get('framebuffer_height')}")
+    if data.get("screen_open"):
+        print(f"Screen open: {data.get('screen_type')}")
+    else:
+        print("No screen open")
+
+
 def cmd_window(args):
     """Window management commands."""
     try:
@@ -788,7 +810,14 @@ def cmd_window(args):
                     if data.get("focused"):
                         print("Window focus requested")
                     else:
-                        print("Focus request suppressed (focus grab disabled)")
+                        print(f"Focus request suppressed ({data.get('reason', 'focus grab disabled')})")
+
+            elif args.action in ("hide", "show"):
+                data = mc.window_hide() if args.action == "hide" else mc.window_show()
+                if args.json:
+                    output(data, True)
+                else:
+                    print_window_status(data)
 
             elif args.action == "close_screen":
                 data = mc.window_close_screen()
@@ -805,14 +834,7 @@ def cmd_window(args):
                 if args.json:
                     output(data, True)
                 else:
-                    focus_status = "enabled" if data.get("focus_grab_enabled") else "disabled"
-                    pause_status = "enabled" if data.get("pause_on_lost_focus_enabled") else "disabled"
-                    print(f"Focus grab: {focus_status}")
-                    print(f"Pause on lost focus: {pause_status}")
-                    if data.get("screen_open"):
-                        print(f"Screen open: {data.get('screen_type')}")
-                    else:
-                        print("No screen open")
+                    print_window_status(data)
 
             return 0
     except Exception as e:
@@ -1125,7 +1147,8 @@ def main():
 
     # window
     window_p = sub.add_parser("window", help="Window management (focus control for headless operation)")
-    window_p.add_argument("action", choices=["focus_grab", "pause_on_lost_focus", "focus", "close_screen", "status"],
+    window_p.add_argument("action", choices=["focus_grab", "pause_on_lost_focus", "focus", "close_screen", "status",
+                                             "hide", "show"],
                           help="Window action")
     window_p.add_argument("--enabled", type=lambda x: x.lower() in ('true', '1', 'yes'),
                           default=None, help="Enable/disable setting (true/false)")
