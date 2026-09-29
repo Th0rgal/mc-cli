@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "mccli"
-version = "1.0.0"
+version = "1.5.0"
 description = "Minecraft CLI for LLM-Assisted Development & Automated Testing"
 readme = "README.md"
 requires-python = ">=3.9"

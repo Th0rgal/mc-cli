@@ -5,18 +5,17 @@ Complete reference for all MC-CLI commands.
 ## Loader Availability
 
 MC-CLI is available for both Fabric and NeoForge. On Minecraft 26.x both loaders share the same
-code base and support every command. On 1.21.x not all commands are available on Fabric:
+code base. Every command is available on every mod except Fabric 1.21.4, which only has the core set:
 
-| Command | Fabric 26.x | NeoForge 26.x | NeoForge 1.21.11 | Fabric 1.21.11 / 1.21.4 |
-|---------|-------------|---------------|------------------|-------------------------|
-| `status`, `teleport`, `camera`, `time` | Yes | Yes | Yes | Yes |
-| `shader`, `screenshot`, `perf`, `logs`, `execute` | Yes | Yes | Yes | Yes |
-| `block`, `entity`, `item`, `inventory` | Yes | Yes | Yes | No |
-| `interact`, `chat`, `server`, `window`, `world` | Yes | Yes | Yes | No |
-| `resourcepack` | Yes | Yes | Yes | No |
+| Command | Fabric 26.x | NeoForge 26.x | NeoForge 1.21.11 | Fabric 1.21.11 | Fabric 1.21.4 |
+|---------|-------------|---------------|------------------|----------------|---------------|
+| `status`, `teleport`, `camera`, `time` | Yes | Yes | Yes | Yes | Yes |
+| `shader`, `screenshot`, `perf`, `logs`, `execute` | Yes | Yes | Yes | Yes | Yes |
+| `block`, `entity`, `item`, `inventory` | Yes | Yes | Yes | Yes | No |
+| `interact`, `chat`, `server`, `window`, `world` | Yes | Yes | Yes | Yes | No |
+| `resourcepack` | Yes | Yes | Yes | Yes | No |
 
-The NeoForge 1.21.11 and 26.x mods include additional features through mixins for chat capture,
-window management, and enhanced block/entity interaction.
+On Fabric, `resourcepack list` also includes Fabric's built-in per-mod packs.
 
 Differences on Minecraft 26.x:
 - `world create --name <name>` creates and joins a new world directly (optional `--seed`,
