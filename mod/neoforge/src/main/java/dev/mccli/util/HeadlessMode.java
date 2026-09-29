@@ -106,11 +106,17 @@ public final class HeadlessMode {
         if (!hidden || handle == 0L) {
             return;
         }
-        if (isVisible(handle)) {
+        boolean wasVisible = isVisible(handle);
+        if (wasVisible) {
             McCliMod.LOGGER.warn("[headless] Game window was already visible (early loading screen?); hiding it. "
                 + "On NeoForge set earlyWindowControl = false in config/fml.toml to avoid this.");
         }
         GLFW.glfwHideWindow(handle);
+        if (wasVisible) {
+            // The early loading screen initialized GLFW before our GLX hook, so on macOS the process
+            // became a regular (Dock) app; turn it back into a background process.
+            MacosApp.makeBackgroundApp();
+        }
     }
 
     /** Called every client tick (main thread). */
