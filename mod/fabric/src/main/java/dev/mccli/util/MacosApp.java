@@ -15,6 +15,7 @@ import org.lwjgl.system.macosx.ObjCRuntime;
  */
 public final class MacosApp {
     private static final long NS_APPLICATION_ACTIVATION_POLICY_REGULAR = 0L;
+    private static final long NS_APPLICATION_ACTIVATION_POLICY_PROHIBITED = 2L;
 
     private MacosApp() {}
 
@@ -24,6 +25,19 @@ public final class MacosApp {
 
     /** {@code [NSApp setActivationPolicy:NSApplicationActivationPolicyRegular]; [NSApp activateIgnoringOtherApps:YES]}. Main thread only. */
     public static void makeForegroundApp() {
+        setPolicy(NS_APPLICATION_ACTIVATION_POLICY_REGULAR, true);
+    }
+
+    /**
+     * {@code [NSApp setActivationPolicy:NSApplicationActivationPolicyProhibited]; [NSApp deactivate]}:
+     * back to a background process (no Dock icon, not frontmost) after the window was hidden again,
+     * handing focus back to the previously active application. Main thread only.
+     */
+    public static void makeBackgroundApp() {
+        setPolicy(NS_APPLICATION_ACTIVATION_POLICY_PROHIBITED, false);
+    }
+
+    private static void setPolicy(long policy, boolean activate) {
         if (!isMacos()) {
             return;
         }
@@ -34,8 +48,12 @@ public final class MacosApp {
             if (app == 0L) {
                 return;
             }
-            JNI.invokePPPZ(app, ObjCRuntime.sel_getUid("setActivationPolicy:"), NS_APPLICATION_ACTIVATION_POLICY_REGULAR, objcMsgSend);
-            JNI.invokePPPV(app, ObjCRuntime.sel_getUid("activateIgnoringOtherApps:"), 1L, objcMsgSend);
+            JNI.invokePPPZ(app, ObjCRuntime.sel_getUid("setActivationPolicy:"), policy, objcMsgSend);
+            if (activate) {
+                JNI.invokePPPV(app, ObjCRuntime.sel_getUid("activateIgnoringOtherApps:"), 1L, objcMsgSend);
+            } else {
+                JNI.invokePPV(app, ObjCRuntime.sel_getUid("deactivate"), objcMsgSend);
+            }
         } catch (Throwable t) {
             McCliMod.LOGGER.debug("[headless] Could not change macOS activation policy", t);
         }

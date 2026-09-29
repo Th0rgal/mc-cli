@@ -160,6 +160,7 @@ public final class HeadlessMode {
         if (handle != 0L) {
             GLFW.glfwHideWindow(handle);
         }
+        MacosApp.makeBackgroundApp();
         McCliMod.LOGGER.info("[headless] Window hidden");
     }
 
