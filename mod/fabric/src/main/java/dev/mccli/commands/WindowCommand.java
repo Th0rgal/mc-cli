@@ -1,6 +1,7 @@
 package dev.mccli.commands;
 
 import com.google.gson.JsonObject;
+import dev.mccli.util.HeadlessMode;
 import dev.mccli.util.MainThreadExecutor;
 import dev.mccli.util.McNames;
 import dev.mccli.util.WindowFocusManager;
@@ -17,6 +18,9 @@ import java.util.concurrent.CompletableFuture;
  * - pause_on_lost_focus: Enable/disable pause menu when window loses focus
  * - focus: Manually request window focus
  * - close_screen: Close any open GUI screen
+ * - hide: Hide the window and enter headless mode (no focus, no mouse grab, muted, keeps rendering)
+ * - show: Show the window and leave headless mode (restores focus handling and sound)
+ * - status: Window/focus/headless state
  *
  * When focus_grab is disabled, Minecraft will not steal focus from other applications,
  * which is essential for automated/background testing.
@@ -39,6 +43,8 @@ public class WindowCommand implements Command {
             case "pause_on_lost_focus" -> handlePauseOnLostFocus(params);
             case "focus" -> handleFocus();
             case "close_screen" -> handleCloseScreen();
+            case "hide" -> handleHide();
+            case "show" -> handleShow();
             case "status" -> handleStatus();
             default -> {
                 CompletableFuture<JsonObject> future = new CompletableFuture<>();
@@ -106,12 +112,19 @@ public class WindowCommand implements Command {
      */
     private CompletableFuture<JsonObject> handleFocus() {
         return MainThreadExecutor.submit(() -> {
+            JsonObject response = new JsonObject();
+            if (HeadlessMode.isHidden()) {
+                // Never show/raise a headless window implicitly; "window show" leaves headless mode
+                response.addProperty("focused", false);
+                response.addProperty("reason", "Window is hidden (headless); use 'window show' first");
+                return response;
+            }
+
             long handle = MinecraftClient.getInstance().getWindow().getHandle();
 
             GLFW.glfwShowWindow(handle);
             GLFW.glfwFocusWindow(handle);
 
-            JsonObject response = new JsonObject();
             response.addProperty("focused", true);
             return response;
         });
@@ -144,6 +157,30 @@ public class WindowCommand implements Command {
     }
 
     /**
+     * Hide the window and enter headless mode.
+     *
+     * Response: same fields as {@code status}.
+     */
+    private CompletableFuture<JsonObject> handleHide() {
+        return MainThreadExecutor.submit(() -> {
+            HeadlessMode.hide(MinecraftClient.getInstance());
+            return buildStatus(MinecraftClient.getInstance());
+        });
+    }
+
+    /**
+     * Show the window and leave headless mode.
+     *
+     * Response: same fields as {@code status}.
+     */
+    private CompletableFuture<JsonObject> handleShow() {
+        return MainThreadExecutor.submit(() -> {
+            HeadlessMode.show(MinecraftClient.getInstance());
+            return buildStatus(MinecraftClient.getInstance());
+        });
+    }
+
+    /**
      * Get current window/focus status.
      *
      * Response:
@@ -151,21 +188,38 @@ public class WindowCommand implements Command {
      * - pause_on_lost_focus_enabled: boolean
      * - screen_open: boolean
      * - screen_type: string (if screen is open)
+     * - headless: boolean (window hidden by headless mode)
+     * - visible: boolean (OS-level window visibility)
+     * - focused, headless_at_startup, headless_fps, sound_muted, framebuffer_width, framebuffer_height
      */
     private CompletableFuture<JsonObject> handleStatus() {
-        return MainThreadExecutor.submit(() -> {
-            MinecraftClient client = MinecraftClient.getInstance();
-            JsonObject response = new JsonObject();
+        return MainThreadExecutor.submit(() -> buildStatus(MinecraftClient.getInstance()));
+    }
 
-            response.addProperty("focus_grab_enabled", WindowFocusManager.isFocusGrabEnabled());
-            response.addProperty("pause_on_lost_focus_enabled", !WindowFocusManager.isPauseOnLostFocusDisabled());
-            response.addProperty("screen_open", client.currentScreen != null);
+    private static JsonObject buildStatus(MinecraftClient client) {
+        JsonObject response = new JsonObject();
 
-            if (client.currentScreen != null) {
-                response.addProperty("screen_type", McNames.screen(client.currentScreen));
-            }
+        response.addProperty("focus_grab_enabled", WindowFocusManager.isFocusGrabEnabled());
+        response.addProperty("pause_on_lost_focus_enabled",
+            !WindowFocusManager.isPauseOnLostFocusDisabled() && !HeadlessMode.isHidden());
+        response.addProperty("screen_open", client.currentScreen != null);
 
-            return response;
-        });
+        if (client.currentScreen != null) {
+            response.addProperty("screen_type", McNames.screen(client.currentScreen));
+        }
+
+        response.addProperty("headless", HeadlessMode.isHidden());
+        response.addProperty("visible", HeadlessMode.isWindowVisible(client));
+        response.addProperty("focused", client.getWindow() != null && client.isWindowFocused());
+        response.addProperty("headless_at_startup", HeadlessMode.isRequested());
+        response.addProperty("headless_fps", HeadlessMode.fps());
+        response.addProperty("sound_muted", HeadlessMode.isMuted());
+        if (client.getWindow() != null) {
+            // Yarn getFramebufferWidth/Height == Mojang Window.getWidth/getHeight (pixels)
+            response.addProperty("framebuffer_width", client.getWindow().getFramebufferWidth());
+            response.addProperty("framebuffer_height", client.getWindow().getFramebufferHeight());
+        }
+
+        return response;
     }
 }

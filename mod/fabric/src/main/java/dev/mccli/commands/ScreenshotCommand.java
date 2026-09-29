@@ -7,7 +7,7 @@ import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gl.Framebuffer;
 import net.minecraft.client.texture.NativeImage;
 import net.minecraft.client.util.ScreenshotRecorder;
-import org.lwjgl.glfw.GLFW;
+import dev.mccli.util.WindowFocusManager;
 
 import java.io.File;
 import java.io.IOException;
@@ -74,10 +74,9 @@ public class ScreenshotCommand implements Command {
                             client.options.pauseOnLostFocus
                         };
 
-                        // Focus window
+                        // Show/focus window (respects focus grab; never shows a headless window)
                         long handle = client.getWindow().getHandle();
-                        GLFW.glfwShowWindow(handle);
-                        GLFW.glfwFocusWindow(handle);
+                        WindowFocusManager.showWindow(handle);
 
                         // Hide HUD and disable pause
                         client.options.hudHidden = true;

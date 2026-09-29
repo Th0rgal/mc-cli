@@ -35,6 +35,7 @@ public class StatusCommand implements Command {
 
             boolean inGame = client.level != null && client.player != null;
             result.addProperty("in_game", inGame);
+            result.addProperty("headless", dev.mccli.util.HeadlessMode.isHidden());
 
             if (inGame) {
                 LocalPlayer player = client.player;

@@ -16,7 +16,8 @@ import org.lwjgl.glfw.GLFW;
  * This is essential for automated testing where Minecraft runs in the background.
  */
 public class WindowFocusManager {
-    private static volatile boolean focusGrabEnabled = true;
+    // Headless mode starts with focus grabbing disabled (see HeadlessMode)
+    private static volatile boolean focusGrabEnabled = !HeadlessMode.isRequested();
     private static volatile boolean pauseOnLostFocusOverride = false;
     private static volatile Boolean originalPauseOnLostFocus = null;
 
@@ -83,7 +84,7 @@ public class WindowFocusManager {
      * @return true if focus was requested, false if suppressed
      */
     public static boolean requestFocus(long windowHandle) {
-        if (!focusGrabEnabled) {
+        if (!focusGrabEnabled || HeadlessMode.isHidden()) {
             McCliMod.LOGGER.debug("Focus request suppressed (focus grab disabled)");
             return false;
         }
@@ -110,6 +111,10 @@ public class WindowFocusManager {
      * @param windowHandle the GLFW window handle
      */
     public static void showWindow(long windowHandle) {
+        if (HeadlessMode.isHidden()) {
+            // Headless: never show the window implicitly (use "window show")
+            return;
+        }
         GLFW.glfwShowWindow(windowHandle);
         if (focusGrabEnabled) {
             GLFW.glfwFocusWindow(windowHandle);

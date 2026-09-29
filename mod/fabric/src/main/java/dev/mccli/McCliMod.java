@@ -1,6 +1,7 @@
 package dev.mccli;
 
 import dev.mccli.server.SocketServer;
+import dev.mccli.util.HeadlessMode;
 import dev.mccli.util.LogCaptureAppender;
 import dev.mccli.util.MainThreadExecutor;
 import net.fabricmc.api.ClientModInitializer;
@@ -44,10 +45,11 @@ public class McCliMod implements ClientModInitializer {
 
     @Override
     public void onInitializeClient() {
-        LOGGER.info("MC-CLI initializing...");
+        LOGGER.info("MC-CLI initializing{}...", HeadlessMode.isRequested() ? " in headless mode" : "");
 
         // Register tick handler for main thread execution
         ClientTickEvents.END_CLIENT_TICK.register(client -> {
+            HeadlessMode.tick(client);
             MainThreadExecutor.processPendingTasks();
         });
 
