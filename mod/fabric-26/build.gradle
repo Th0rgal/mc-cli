@@ -1,0 +1,63 @@
+// Fabric MC-CLI for Minecraft 26.x (unobfuscated, Mojang names, Java 25).
+// Shared loader-independent sources live in ../common-26; this project only adds
+// the Fabric entrypoint (dev.mccli.fabric.McCliFabric) and fabric.mod.json.
+//
+// Build against another 26.x release with: ./gradlew :fabric-26:build -Pmc26_version=26.2
+plugins {
+    id 'net.fabricmc.fabric-loom' version '1.18.2'
+}
+
+def mcVersion = project.mc26_version
+def fabricApiVersion = project.findProperty("fabric_api_version_${mcVersion}")
+if (fabricApiVersion == null) {
+    throw new GradleException("No fabric_api_version_${mcVersion} in fabric-26/gradle.properties")
+}
+
+version = project.mod_version
+group = project.mod_group_id
+
+base {
+    archivesName = "${project.mod_id}-fabric-${mcVersion}"
+}
+
+sourceSets {
+    main {
+        java { srcDir '../common-26/src/main/java' }
+        resources { srcDir '../common-26/src/main/resources' }
+    }
+}
+
+dependencies {
+    minecraft "com.mojang:minecraft:${mcVersion}"
+    implementation "net.fabricmc:fabric-loader:${project.loader_version}"
+    implementation "net.fabricmc.fabric-api:fabric-api:${fabricApiVersion}"
+    // Gson ships with Minecraft; no extra dependency needed.
+}
+
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+tasks.withType(JavaCompile).configureEach {
+    options.release = 25
+    options.encoding = 'UTF-8'
+}
+
+processResources {
+    def props = [
+            version          : project.mod_version,
+            minecraft_dep    : project.findProperty('fabric_minecraft_dep') ?: "~${mcVersion}",
+            loader_version   : project.loader_version,
+    ]
+    inputs.properties props
+    filesMatching("fabric.mod.json") {
+        expand props
+    }
+}
+
+jar {
+    from(rootProject.file("../LICENSE")) {
+        rename { "${it}_mccli" }
+    }
+}

@@ -15,3 +15,8 @@ rootProject.name = "mccli"
 include 'fabric'
 include 'fabric-1.21.4'
 include 'neoforge'
+
+// Minecraft 26.x (unobfuscated, Java 25). Loader-independent code lives in common-26/
+// and is added as a source directory to both subprojects.
+include 'fabric-26'
+include 'neoforge-26'

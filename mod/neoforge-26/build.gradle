@@ -1,0 +1,83 @@
+// NeoForge MC-CLI for Minecraft 26.x (unobfuscated, Mojang names, Java 25).
+// Shared loader-independent sources live in ../common-26; this project only adds
+// the NeoForge entrypoint (dev.mccli.neoforge.McCliNeoForge) and neoforge.mods.toml.
+//
+// Build against another 26.x release with: ./gradlew :neoforge-26:build -Pmc26_version=26.2
+plugins {
+    id 'java-library'
+    id 'net.neoforged.moddev' version '2.0.147'
+}
+
+def mcVersion = project.mc26_version
+def neoVersion = project.findProperty("neo_version_${mcVersion}")
+if (neoVersion == null) {
+    throw new GradleException("No neo_version_${mcVersion} in neoforge-26/gradle.properties")
+}
+
+version = project.mod_version
+group = project.mod_group_id
+
+base {
+    archivesName = "${project.mod_id}-neoforge-${mcVersion}"
+}
+
+java.toolchain.languageVersion = JavaLanguageVersion.of(25)
+// The root build sets Java 21 compatibility for all subprojects; 26.x needs 25.
+java {
+    sourceCompatibility = JavaVersion.VERSION_25
+    targetCompatibility = JavaVersion.VERSION_25
+}
+
+sourceSets {
+    main {
+        java { srcDir '../common-26/src/main/java' }
+        resources { srcDir '../common-26/src/main/resources' }
+    }
+}
+
+neoForge {
+    version = neoVersion
+
+    runs {
+        client {
+            client()
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
+    }
+}
+
+var generateModMetadata = tasks.register("generateModMetadata", ProcessResources) {
+    var replaceProperties = [
+            minecraft_version_range: project.findProperty('neo_minecraft_version_range') ?: "[${mcVersion}]",
+            // Floor at <major>.<minor>.0 so that -beta builds (which sort below their release) still match
+            neo_version_min        : neoVersion.tokenize('.').take(3).join('.').replaceAll(/-.*$/, ''),
+            loader_version_range   : project.loader_version_range,
+            mod_id                 : project.mod_id,
+            mod_name               : project.mod_name,
+            mod_license            : project.mod_license,
+            mod_version            : project.mod_version,
+            mod_authors            : project.mod_authors,
+            mod_description        : project.mod_description,
+    ]
+    inputs.properties replaceProperties
+    expand replaceProperties
+    from "src/main/templates"
+    into "build/generated/sources/modMetadata"
+}
+sourceSets.main.resources.srcDir generateModMetadata
+neoForge.ideSyncTask generateModMetadata
+
+tasks.withType(JavaCompile).configureEach {
+    options.encoding = 'UTF-8'
+}
+
+jar {
+    from(rootProject.file("../LICENSE")) {
+        rename { "${it}_mccli" }
+    }
+}

@@ -1,0 +1,16 @@
+{
+  "required": true,
+  "minVersion": "0.8",
+  "package": "dev.mccli.mixin",
+  "compatibilityLevel": "JAVA_25",
+  "client": [
+    "ChatHudMixin",
+    "ClientCommonNetworkHandlerMixin",
+    "DisconnectedScreenMixin",
+    "MouseMixin",
+    "WindowMixin"
+  ],
+  "injectors": {
+    "defaultRequire": 1
+  }
+}
