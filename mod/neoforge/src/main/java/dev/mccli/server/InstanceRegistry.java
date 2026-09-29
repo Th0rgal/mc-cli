@@ -37,6 +37,7 @@ public class InstanceRegistry {
         public long pid;
         public long startTime;
         public String version;
+        public boolean headless;
 
         public Instance() {}
 
@@ -46,6 +47,7 @@ public class InstanceRegistry {
             this.pid = ProcessHandle.current().pid();
             this.startTime = System.currentTimeMillis();
             this.version = McCliMod.MOD_ID;
+            this.headless = dev.mccli.util.HeadlessMode.isRequested();
         }
     }
 

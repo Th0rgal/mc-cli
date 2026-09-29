@@ -24,6 +24,21 @@ public final class Platform {
         GLFW.glfwShowWindow(windowHandle);
     }
 
+    /** Hide the window (headless mode). */
+    public static void hideWindow(long windowHandle) {
+        GLFW.glfwHideWindow(windowHandle);
+    }
+
+    /** Whether the window is currently shown by the OS. */
+    public static boolean isWindowVisible(long windowHandle) {
+        return GLFW.glfwGetWindowAttrib(windowHandle, GLFW.GLFW_VISIBLE) == GLFW.GLFW_TRUE;
+    }
+
+    /** Resize the window (logical size; the framebuffer follows the display pixel density). */
+    public static void setWindowSize(long windowHandle, int width, int height) {
+        GLFW.glfwSetWindowSize(windowHandle, width, height);
+    }
+
     /** Swing the arm for a use/right-click action, as vanilla does. */
     public static void swingUse(LocalPlayer player, InteractionHand hand) {
         player.swing(hand);

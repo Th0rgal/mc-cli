@@ -1,6 +1,7 @@
 package dev.mccli;
 
 import dev.mccli.server.SocketServer;
+import dev.mccli.util.HeadlessMode;
 import dev.mccli.util.LogCaptureAppender;
 import dev.mccli.util.MainThreadExecutor;
 import org.apache.logging.log4j.LogManager;
@@ -54,7 +55,7 @@ public final class McCliMod {
             return;
         }
         initialized = true;
-        LOGGER.info("MC-CLI initializing ({})...", loader);
+        LOGGER.info("MC-CLI initializing ({}){}...", loader, HeadlessMode.isRequested() ? " in headless mode" : "");
 
         // Install log capture appender
         installLogCapture();
@@ -79,6 +80,7 @@ public final class McCliMod {
      * Must be called by the loader glue at the end of every client tick.
      */
     public static void onClientTick() {
+        HeadlessMode.tick(net.minecraft.client.Minecraft.getInstance());
         MainThreadExecutor.processPendingTasks();
     }
 

@@ -83,6 +83,26 @@ mccli -i my_world status  # Target by name
 mccli -i 25581 capture    # Target by port
 ```
 
+## Headless Mode
+
+Run Minecraft without a visible window (MC-CLI 1.6.0+, Minecraft 1.21.11 and 26.x, Fabric and NeoForge).
+
+```bash
+shard launch "Fabric 26.3" --headless          # Shard 0.1.28+
+MCCLI_HEADLESS=1 <any launcher command>        # or the JVM argument -Dmccli.headless=true
+```
+
+The window is created hidden and is never shown, focused or raised. On macOS there is no Dock icon.
+The mouse is never grabbed, pause-on-lost-focus is ignored, and master volume is muted without changing
+`options.txt`. The game keeps rendering, so `capture`, `analyze` and every other command work normally.
+
+- `mccli window show` brings the window up (and restores focus handling and sound); `mccli window hide` goes back to headless.
+- `mccli instances` marks headless instances with `[headless]`; `status` and `window status` report `headless`.
+- JVM options: `-Dmccli.headless.fps=30` (render rate while hidden), `-Dmccli.headless.width=1280` / `-Dmccli.headless.height=720` (framebuffer and screenshot size).
+- NeoForge shows its early loading screen before any mod loads, so it can flash briefly. Set `earlyWindowControl = false` in the instance's `config/fml.toml` to avoid it.
+- Linux servers without a display still need an OpenGL context: run under a virtual display, e.g. `xvfb-run shard launch "Fabric 26.3" --headless`.
+- Not available in the legacy Fabric 1.21.4 mod.
+
 ## LLM Integration
 
 ```python

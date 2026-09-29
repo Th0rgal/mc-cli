@@ -27,6 +27,7 @@ class Instance:
     start_time: int
     version: str
     host: str = "localhost"
+    headless: bool = False
 
     @property
     def address(self) -> str:
@@ -79,6 +80,7 @@ def list_instances(include_dead: bool = False) -> List[Instance]:
             pid=entry.get("pid", 0),
             start_time=entry.get("startTime", 0),
             version=entry.get("version", "unknown"),
+            headless=bool(entry.get("headless", False)),
         )
         if include_dead or instance.is_alive():
             instances.append(instance)

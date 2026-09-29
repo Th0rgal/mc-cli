@@ -35,6 +35,7 @@ public class StatusCommand implements Command {
 
             boolean inGame = client.world != null && client.player != null;
             result.addProperty("in_game", inGame);
+            result.addProperty("headless", dev.mccli.util.HeadlessMode.isHidden());
 
             if (inGame) {
                 ClientPlayerEntity player = client.player;

@@ -8,7 +8,14 @@
     "ClientCommonNetworkHandlerMixin",
     "DisconnectedScreenMixin",
     "MouseMixin",
-    "WindowMixin"
+    "WindowMixin",
+    "headless.HeadlessBackendInitMixin",
+    "headless.HeadlessCreateMixin",
+    "headless.HeadlessFramerateMixin",
+    "headless.HeadlessMouseMixin",
+    "headless.HeadlessOptionsMixin",
+    "headless.HeadlessPauseMixin",
+    "headless.HeadlessWindowMixin"
   ],
   "injectors": {
     "defaultRequire": 1

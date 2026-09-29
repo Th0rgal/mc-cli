@@ -48,7 +48,7 @@ Differences on Minecraft 26.x:
 | `block [--x y z]` | Probe targeted or specific block |
 | `entity` | Probe targeted entity |
 | `interact use\|use_on_block\|use_on_entity\|attack\|drop\|swap\|select` | Player interactions |
-| `window focus_grab\|pause_on_lost_focus\|focus\|close_screen\|status` | Window management |
+| `window hide\|show\|focus_grab\|pause_on_lost_focus\|focus\|close_screen\|status` | Window management and headless mode |
 | `world list\|load\|create\|delete` | Singleplayer world management |
 | `macro file.json` | Run a JSON macro script |
 
@@ -1103,7 +1103,32 @@ mccli interact select 2
 
 ## window
 
-Window management for headless operation.
+Window management and headless mode. Headless mode (MC-CLI 1.6.0+, not on Fabric 1.21.4) is enabled at
+startup with `MCCLI_HEADLESS=1`, `-Dmccli.headless=true` or `shard launch <profile> --headless`, or at
+runtime with `window hide`. See the README's "Headless Mode" section.
+
+### window hide
+
+Hide the window and enter headless mode: no focus, no mouse grab, pause-on-lost-focus ignored, master
+volume muted, and the game keeps rendering at `mccli.headless.fps` (default 30). On macOS it also removes
+the Dock icon and hands focus back to the previous app.
+
+```bash
+mccli window hide
+```
+
+The response has the same fields as `window status`.
+
+### window show
+
+Show and raise the window and leave headless mode: focus grab is re-enabled, pause-on-lost-focus is honoured
+again and sound is unmuted.
+
+```bash
+mccli window show
+```
+
+The response has the same fields as `window status`.
 
 ### window focus_grab
 
@@ -1192,9 +1217,22 @@ mccli window status
   "focus_grab_enabled": true,
   "pause_on_lost_focus_enabled": true,
   "screen_open": false,
-  "screen_type": null
+  "screen_type": null,
+  "headless": false,
+  "visible": true,
+  "focused": true,
+  "headless_at_startup": false,
+  "headless_fps": 30,
+  "sound_muted": false,
+  "framebuffer_width": 1280,
+  "framebuffer_height": 720
 }
 ```
+
+- `headless`: the window is hidden by headless mode; `visible`: actual on-screen visibility.
+- While headless, `pause_on_lost_focus_enabled` reports `false`, and `window focus` returns
+  `{"focused": false, "reason": "Window is hidden (headless); use 'window show' first"}`.
+- `status` also reports `headless`, and `instances --json` entries include `headless`.
 
 ---
 

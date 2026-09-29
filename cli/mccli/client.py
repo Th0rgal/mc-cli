@@ -859,9 +859,34 @@ class Client:
         Get current window/focus status.
 
         Returns:
-            dict with {focus_grab_enabled: bool, screen_open: bool, screen_type?: str}
+            dict with {focus_grab_enabled: bool, pause_on_lost_focus_enabled: bool,
+            screen_open: bool, screen_type?: str, headless: bool, visible: bool, ...}
+            (headless/visible and the other headless fields require mod 1.6.0+)
         """
         return self.command("window", {"action": "status"})
+
+    def window_hide(self) -> dict:
+        """
+        Hide the game window and enter headless mode (requires mod 1.6.0+).
+
+        While hidden the game keeps rendering (screenshots work), never grabs the
+        mouse or steals focus, ignores pause-on-lost-focus and is muted.
+
+        Returns:
+            dict with the same fields as window_status()
+        """
+        return self.command("window", {"action": "hide"})
+
+    def window_show(self) -> dict:
+        """
+        Show the game window and leave headless mode (requires mod 1.6.0+).
+
+        Restores visibility, default focus handling and sound.
+
+        Returns:
+            dict with the same fields as window_status()
+        """
+        return self.command("window", {"action": "show"})
 
     # =========================================================================
     # World Commands

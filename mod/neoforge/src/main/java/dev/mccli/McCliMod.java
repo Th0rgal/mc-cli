@@ -1,6 +1,7 @@
 package dev.mccli;
 
 import dev.mccli.server.SocketServer;
+import dev.mccli.util.HeadlessMode;
 import dev.mccli.util.LogCaptureAppender;
 import dev.mccli.util.MainThreadExecutor;
 import net.neoforged.api.distmarker.Dist;
@@ -48,7 +49,7 @@ public class McCliMod {
     private static LogCaptureAppender logAppender;
 
     public McCliMod() {
-        LOGGER.info("MC-CLI initializing...");
+        LOGGER.info("MC-CLI initializing{}...", HeadlessMode.isRequested() ? " in headless mode" : "");
 
         // Register client tick event handler
         NeoForge.EVENT_BUS.register(ClientTickHandler.class);
@@ -112,6 +113,7 @@ public class McCliMod {
     public static class ClientTickHandler {
         @SubscribeEvent
         public static void onClientTick(ClientTickEvent.Post event) {
+            HeadlessMode.tick(net.minecraft.client.Minecraft.getInstance());
             MainThreadExecutor.processPendingTasks();
         }
     }
