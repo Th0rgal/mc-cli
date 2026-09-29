@@ -105,3 +105,10 @@ Key breaking changes from 1.21.1:
 - Fabric Loom 1.14 (1.21.x, `fabric-loom` plugin id) and 1.18.2 (26.x, `net.fabricmc.fabric-loom` plugin id,
   no `mappings` line, plain `implementation` instead of `modImplementation`)
 - NeoForge ModDev 2.0.134 (1.21.11) and 2.0.147 (26.x)
+
+## Headless Mode
+
+- Controller: `util/HeadlessMode` in `mod/common-26` (26.x), `mod/fabric` and `mod/neoforge` (1.21.11). Enabled by `-Dmccli.headless=true` or `MCCLI_HEADLESS=1`; toggled at runtime by `window hide|show`.
+- Window hiding is version specific: GLFW (`GLFW_VISIBLE=false`, suppressed show/focus, `GLFW_COCOA_MENUBAR=false`) on 1.21.11 and 26.2 (`mod/common-26/src/mc26.2`), SDL3 (`SDL_WINDOW_HIDDEN`, suppressed show/raise, `SDL_MAC_BACKGROUND_APP`) on 26.3 (`src/mc26.3`).
+- Rendering is kept alive by overriding the unfocused/inactivity framerate limits (`mccli.headless.fps`, default 30); sound is muted through the master volume without touching options.txt; `util/MacosApp` switches the activation policy on show/hide.
+- NeoForge's early loading window appears before mods load; the mod hides it on window creation, and `earlyWindowControl = false` in `config/fml.toml` avoids the flash.
