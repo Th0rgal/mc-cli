@@ -40,7 +40,7 @@ Key breaking changes from 1.21.1:
 
 ## Build Requirements
 
-- Java 21+
+- Java 21+ (NeoForge: 21.0.6 or newer; the 21.0.4 javac fails to recompile the decompiled 1.21.11 sources with an inference error)
 - Gradle 9.2.1+
 - Fabric Loom 1.14+ (for Fabric)
 - NeoForge ModDev 2.0.134+ (for NeoForge)
