@@ -80,7 +80,6 @@ public class ScreenshotCommand implements Command {
                         };
 
                         // Focus window (respects WindowFocusManager setting)
-                        // 26.x: SDL3 window handle
                         long handle = ClientCompat.windowHandle(client);
                         WindowFocusManager.showWindow(handle);
 

@@ -2,7 +2,7 @@ package dev.mccli.util;
 
 import dev.mccli.McCliMod;
 import net.minecraft.client.Minecraft;
-import org.lwjgl.sdl.SDLVideo;
+import dev.mccli.platform.Platform;
 
 /**
  * Manages window focus behavior for headless/automated operation.
@@ -79,7 +79,7 @@ public class WindowFocusManager {
      * Request window focus, respecting the focus grab setting.
      * Only actually focuses the window if focus grab is enabled.
      *
-     * @param windowHandle the SDL window handle ({@code Window.handle()})
+     * @param windowHandle the native window handle ({@code Window.handle()})
      * @return true if focus was requested, false if suppressed
      */
     public static boolean requestFocus(long windowHandle) {
@@ -87,7 +87,7 @@ public class WindowFocusManager {
             McCliMod.LOGGER.debug("Focus request suppressed (focus grab disabled)");
             return false;
         }
-        SDLVideo.SDL_RaiseWindow(windowHandle);
+        Platform.raiseWindow(windowHandle);
         return true;
     }
 
@@ -102,19 +102,19 @@ public class WindowFocusManager {
         if (handle == 0L) {
             return false;
         }
-        // 26.x uses SDL3 windows; Window.handle() is the SDL_Window pointer
+        // Window.handle(): SDL_Window pointer on 26.3, GLFW handle on 26.2
         return requestFocus(handle);
     }
 
     /**
      * Show and optionally focus window, respecting focus grab setting.
      *
-     * @param windowHandle the SDL window handle ({@code Window.handle()})
+     * @param windowHandle the native window handle ({@code Window.handle()})
      */
     public static void showWindow(long windowHandle) {
-        SDLVideo.SDL_ShowWindow(windowHandle);
+        Platform.showWindow(windowHandle);
         if (focusGrabEnabled) {
-            SDLVideo.SDL_RaiseWindow(windowHandle);
+            Platform.raiseWindow(windowHandle);
         }
     }
 }

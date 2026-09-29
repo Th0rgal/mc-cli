@@ -28,9 +28,19 @@ java {
     targetCompatibility = JavaVersion.VERSION_25
 }
 
+// Version-specific shims (dev.mccli.platform.Platform, window focus mixins):
+// common-26/src/mc26.2 (GLFW) or common-26/src/mc26.3 (SDL3)
+def versionSrc = file("../common-26/src/mc${mcVersion}/java")
+if (!versionSrc.isDirectory()) {
+    throw new GradleException("Unsupported Minecraft version ${mcVersion}: missing ${versionSrc}")
+}
+
 sourceSets {
     main {
-        java { srcDir '../common-26/src/main/java' }
+        java {
+            srcDir '../common-26/src/main/java'
+            srcDir versionSrc
+        }
         resources { srcDir '../common-26/src/main/resources' }
     }
 }

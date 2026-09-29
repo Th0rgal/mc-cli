@@ -3,6 +3,7 @@ package dev.mccli.commands;
 import com.google.gson.JsonObject;
 import dev.mccli.McCliMod;
 import dev.mccli.util.ItemJson;
+import dev.mccli.platform.Platform;
 import dev.mccli.util.MainThreadExecutor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
@@ -438,14 +439,13 @@ public class InteractCommand implements Command {
         return response;
     }
 
-    // 26.x: swing() takes the item's swing animation; the server infers swings from the
-    // action packets, so this is purely the client-side arm animation (as vanilla does).
+    // Arm swing differs between 26.2 and 26.3; see dev.mccli.platform.Platform
     private static void swingUse(LocalPlayer player, InteractionHand hand) {
-        player.swing(hand, player.getItemInHand(hand).getInteractAnimation(), false);
+        Platform.swingUse(player, hand);
     }
 
     private static void swingAttack(LocalPlayer player) {
-        player.swing(InteractionHand.MAIN_HAND, player.getMainHandItem().getAttackAnimation(), false);
+        Platform.swingAttack(player);
     }
 
     private InteractionHand getHand(JsonObject params) {

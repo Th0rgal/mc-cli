@@ -12,7 +12,7 @@ import org.jspecify.annotations.Nullable;
  * - The open screen lives on {@code Minecraft.gui} ({@code gui.screen()} / {@code gui.setScreen()}).
  * - The F1 "hide GUI" flag moved from {@code Options.hideGui} to {@code Gui.hud} ({@code isHidden()} / {@code toggle()}).
  * - Day time is driven by world clocks ({@code Level.getOverworldClockTime()}).
- * - The window is an SDL3 window (no GLFW); {@code Window.handle()} is the SDL_Window pointer.
+ * - 26.3 windows are SDL3 (26.2 still GLFW); version specifics live in {@code dev.mccli.platform.Platform}.
  */
 public final class ClientCompat {
     private ClientCompat() {}
@@ -40,7 +40,7 @@ public final class ClientCompat {
         return Math.floorMod(level.getOverworldClockTime(), 24000L);
     }
 
-    /** SDL window pointer of the main game window, or 0 if unavailable. */
+    /** Native handle of the main game window (SDL_Window* on 26.3, GLFW on 26.2), or 0 if unavailable. */
     public static long windowHandle(Minecraft client) {
         return client.getWindow() != null ? client.getWindow().handle() : 0L;
     }

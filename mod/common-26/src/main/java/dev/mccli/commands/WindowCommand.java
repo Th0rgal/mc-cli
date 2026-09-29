@@ -5,7 +5,7 @@ import dev.mccli.util.MainThreadExecutor;
 import dev.mccli.util.WindowFocusManager;
 import net.minecraft.client.Minecraft;
 import dev.mccli.util.ClientCompat;
-import org.lwjgl.sdl.SDLVideo;
+import dev.mccli.platform.Platform;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -106,11 +106,10 @@ public class WindowCommand implements Command {
      */
     private CompletableFuture<JsonObject> handleFocus() {
         return MainThreadExecutor.submit(() -> {
-            // 26.x: SDL3 window handle
             long handle = ClientCompat.windowHandle(Minecraft.getInstance());
 
-            SDLVideo.SDL_ShowWindow(handle);
-            SDLVideo.SDL_RaiseWindow(handle);
+            Platform.showWindow(handle);
+            Platform.raiseWindow(handle);
 
             JsonObject response = new JsonObject();
             response.addProperty("focused", true);
