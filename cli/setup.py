@@ -2,7 +2,7 @@ from setuptools import setup, find_packages
 
 setup(
     name="mccli",
-    version="1.0.0",
+    version="1.5.0",
     packages=find_packages(),
     entry_points={
         "console_scripts": [

@@ -4,17 +4,25 @@ Complete reference for all MC-CLI commands.
 
 ## Loader Availability
 
-MC-CLI is available for both Fabric and NeoForge. Not all commands are available on both loaders:
+MC-CLI is available for both Fabric and NeoForge. On Minecraft 26.x both loaders share the same
+code base. Every command is available on every mod except Fabric 1.21.4, which only has the core set:
 
-| Command | Fabric | NeoForge |
-|---------|--------|----------|
-| `status`, `teleport`, `camera`, `time` | Yes | Yes |
-| `shader`, `screenshot`, `perf`, `logs`, `execute` | Yes | Yes |
-| `block`, `entity`, `item`, `inventory` | No | Yes |
-| `interact`, `chat`, `server`, `window`, `world` | No | Yes |
-| `resourcepack` | No | Yes |
+| Command | Fabric 26.x | NeoForge 26.x | NeoForge 1.21.11 | Fabric 1.21.11 | Fabric 1.21.4 |
+|---------|-------------|---------------|------------------|----------------|---------------|
+| `status`, `teleport`, `camera`, `time` | Yes | Yes | Yes | Yes | Yes |
+| `shader`, `screenshot`, `perf`, `logs`, `execute` | Yes | Yes | Yes | Yes | Yes |
+| `block`, `entity`, `item`, `inventory` | Yes | Yes | Yes | Yes | No |
+| `interact`, `chat`, `server`, `window`, `world` | Yes | Yes | Yes | Yes | No |
+| `resourcepack` | Yes | Yes | Yes | Yes | No |
 
-The NeoForge version includes additional features through mixins for chat capture, window management, and enhanced block/entity interaction.
+On Fabric, `resourcepack list` also includes Fabric's built-in per-mod packs.
+
+Differences on Minecraft 26.x:
+- `world create --name <name>` creates and joins a new world directly (optional `--seed`,
+  `--game-mode`, default creative with cheats). Without `--name`, or on older mods, it opens the world selection screen.
+- `chat history` classifies messages by the game's own message source: player chat is `chat`,
+  server/client system messages are `system`.
+- Window focus uses SDL3 (Minecraft 26.x no longer uses GLFW); the `window` command behaves the same.
 
 ## Quick Reference
 
@@ -969,7 +977,7 @@ mccli interact use_on_block --x 10 --y 64 --z -20 --face up
 
 ### interact use_on_entity
 
-Use item on an entity (right-click on entity). Works on interaction entities, so it can click furniture. NeoForge only.
+Use item on an entity (right-click on entity). Works on interaction entities, so it can click furniture. NeoForge 1.21.11 and all 26.x mods.
 
 ```bash
 # Use on the entity under the crosshair
@@ -1260,6 +1268,33 @@ mccli world create
   "note": "Select world screen opened. Use 'Create New World' button or select an existing world."
 }
 ```
+
+**Direct creation (Minecraft 26.x mods):** pass `--name` to create and join a world without any GUI
+interaction. Cheats are enabled; difficulty is normal.
+
+```bash
+mccli world create --name mccli-test
+mccli world create --name seeded --seed 12345 --game-mode survival
+```
+
+**Arguments:**
+- `--name` - world name (also used as the folder name, unsafe characters replaced by `_`)
+- `--seed` - world seed (number or text, default: random)
+- `--game-mode` - survival | creative | adventure | spectator (default: creative)
+
+**Response:**
+```json
+{
+  "success": true,
+  "name": "mccli-test",
+  "display_name": "mccli-test",
+  "game_mode": "creative",
+  "created": true,
+  "loading": true
+}
+```
+
+Fails with `"success": false` if a world with that folder name already exists (use `world load`).
 
 ### world delete
 

@@ -3,6 +3,7 @@ package dev.mccli.commands;
 import com.google.gson.JsonObject;
 import dev.mccli.util.ConnectionErrorTracker;
 import dev.mccli.util.MainThreadExecutor;
+import dev.mccli.util.ServerResourcePackHandler;
 import dev.mccli.util.SessionRefreshHelper;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.client.gui.screen.TitleScreen;
@@ -10,6 +11,7 @@ import net.minecraft.client.gui.screen.multiplayer.ConnectScreen;
 import net.minecraft.client.network.ClientPlayNetworkHandler;
 import net.minecraft.client.network.ServerAddress;
 import net.minecraft.client.network.ServerInfo;
+import net.minecraft.client.world.ClientWorld;
 
 import java.util.concurrent.CompletableFuture;
 
@@ -19,6 +21,7 @@ import java.util.concurrent.CompletableFuture;
  * Actions:
  * - connect: Connect to a multiplayer server
  *   Params: address (required), port (optional, default 25565),
+ *           resourcepack_policy (optional: "prompt", "accept", "reject"),
  *           refresh_session (optional, boolean): attempt session refresh before connecting
  * - disconnect: Disconnect from current server/world
  * - status: Get current server connection info
@@ -95,6 +98,9 @@ public class ServerCommand implements Command {
                 return result;
             }
 
+            // Set resource pack policy before connecting
+            ServerResourcePackHandler.setPolicy(resourcepackPolicy);
+
             try {
                 ServerAddress serverAddress = ServerAddress.parse(fullAddress);
                 ServerInfo serverInfo = new ServerInfo(
@@ -103,10 +109,10 @@ public class ServerCommand implements Command {
                     ServerInfo.ServerType.OTHER
                 );
                 // Vanilla reads this policy when the server pushes a pack: ENABLED downloads it without a prompt
-                serverInfo.setResourcePackPolicy(switch (resourcepackPolicy.toLowerCase()) {
-                    case "accept" -> ServerInfo.ResourcePackPolicy.ENABLED;
-                    case "reject" -> ServerInfo.ResourcePackPolicy.DISABLED;
-                    default -> ServerInfo.ResourcePackPolicy.PROMPT;
+                serverInfo.setResourcePackPolicy(switch (ServerResourcePackHandler.getPolicy()) {
+                    case ACCEPT -> ServerInfo.ResourcePackPolicy.ENABLED;
+                    case REJECT -> ServerInfo.ResourcePackPolicy.DISABLED;
+                    case PROMPT -> ServerInfo.ResourcePackPolicy.PROMPT;
                 });
 
                 // Start connection
@@ -122,14 +128,16 @@ public class ServerCommand implements Command {
                 result.addProperty("success", true);
                 result.addProperty("connecting", true);
                 result.addProperty("address", serverAddress.getAddress());
-                result.addProperty("resourcepack_policy", resourcepackPolicy);
                 result.addProperty("port", serverAddress.getPort());
+                result.addProperty("resourcepack_policy", resourcepackPolicy);
                 if (sessionRefreshed) {
                     result.addProperty("session_refreshed", true);
                 }
             } catch (Exception e) {
                 result.addProperty("success", false);
                 result.addProperty("error", "Failed to connect: " + e.getMessage());
+                // Reset policy on failed connection to prevent stale policy affecting future UI connections
+                ServerResourcePackHandler.reset();
             }
 
             return result;
@@ -150,8 +158,15 @@ public class ServerCommand implements Command {
             boolean wasMultiplayer = !client.isIntegratedServerRunning();
             String worldName = wasMultiplayer ? "multiplayer" : "singleplayer";
 
+            // Close the connection first, like the pause menu's quit button does. Without it
+            // the integrated server never stops and disconnect(Screen, boolean) spins forever
+            // waiting for IntegratedServer.isStopping().
+            client.world.disconnect(ClientWorld.QUITTING_MULTIPLAYER_TEXT);
             // Disconnect and return to title screen (1.21.11 requires a Screen parameter)
             client.disconnect(new TitleScreen(), false);
+
+            // Reset resource pack policy for the next connection
+            ServerResourcePackHandler.reset();
 
             result.addProperty("success", true);
             result.addProperty("disconnected", true);

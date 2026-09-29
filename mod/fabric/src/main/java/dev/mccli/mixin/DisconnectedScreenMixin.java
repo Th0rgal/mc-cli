@@ -1,6 +1,7 @@
 package dev.mccli.mixin;
 
 import dev.mccli.util.ConnectionErrorTracker;
+import dev.mccli.util.ServerResourcePackHandler;
 import net.minecraft.client.gui.screen.DisconnectedScreen;
 import net.minecraft.client.gui.screen.Screen;
 import net.minecraft.text.Text;
@@ -15,6 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * When Minecraft fails to connect (invalid session, server full, banned, etc.)
  * or gets disconnected, it shows a DisconnectedScreen with the reason.
  * We capture this reason so it can be queried via the CLI.
+ *
+ * Also resets the resource pack policy on any disconnect to prevent
+ * stale policies from affecting subsequent connections.
  */
 @Mixin(DisconnectedScreen.class)
 public class DisconnectedScreenMixin {
@@ -23,11 +27,15 @@ public class DisconnectedScreenMixin {
     private void onInit3Params(Screen parent, Text title, Text reason, CallbackInfo ci) {
         // Capture the disconnect reason from 3-param constructor
         ConnectionErrorTracker.recordError(reason, null);
+        // Reset resource pack policy to prevent stale policies on next connection
+        ServerResourcePackHandler.reset();
     }
 
     @Inject(method = "<init>(Lnet/minecraft/client/gui/screen/Screen;Lnet/minecraft/text/Text;Lnet/minecraft/text/Text;Lnet/minecraft/text/Text;)V", at = @At("RETURN"))
     private void onInit4Params(Screen parent, Text title, Text reason, Text buttonLabel, CallbackInfo ci) {
         // Capture the disconnect reason from 4-param constructor
         ConnectionErrorTracker.recordError(reason, null);
+        // Reset resource pack policy to prevent stale policies on next connection
+        ServerResourcePackHandler.reset();
     }
 }

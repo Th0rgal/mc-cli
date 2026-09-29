@@ -6,6 +6,7 @@ import dev.mccli.util.MainThreadExecutor;
 import dev.mccli.util.ServerResourcePackHandler;
 import dev.mccli.util.SessionRefreshHelper;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.gui.screens.TitleScreen;
 import net.minecraft.client.gui.screens.ConnectScreen;
 import net.minecraft.client.multiplayer.ClientPacketListener;
@@ -157,6 +158,10 @@ public class ServerCommand implements Command {
             boolean wasMultiplayer = !client.hasSingleplayerServer();
             String worldName = wasMultiplayer ? "multiplayer" : "singleplayer";
 
+            // Close the connection first, like the pause menu's quit button does. Without it
+            // the integrated server never stops and disconnect(Screen, boolean) spins forever
+            // waiting for it to finish stopping.
+            client.level.disconnect(ClientLevel.DEFAULT_QUIT_MESSAGE);
             // Disconnect and return to title screen (1.21.11 requires a Screen parameter)
             client.disconnect(new TitleScreen(), false);
 

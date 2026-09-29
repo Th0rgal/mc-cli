@@ -861,16 +861,18 @@ def cmd_world(args):
                         print(f"Failed to load world: {data.get('error')}")
 
             elif args.action == "create":
-                data = mc.world_create()
+                data = mc.world_create(args.name, seed=args.seed, game_mode=args.game_mode)
                 if args.json:
                     output(data, True)
                 else:
-                    if data.get("success"):
+                    if data.get("success") and data.get("created"):
+                        print(f"Creating world: {data.get('display_name')} ({data.get('game_mode')})")
+                    elif data.get("success"):
                         print("World selection screen opened")
                         if data.get("note"):
                             print(f"  {data.get('note')}")
                     else:
-                        print(f"Failed to open screen: {data.get('error')}")
+                        print(f"Failed to create world: {data.get('error')}")
 
             elif args.action == "delete":
                 if not args.name:
@@ -1132,7 +1134,12 @@ def main():
     world_p = sub.add_parser("world", help="Singleplayer world management")
     world_p.add_argument("action", choices=["list", "load", "create", "delete"],
                          help="World action")
-    world_p.add_argument("--name", help="World name (folder name or display name)")
+    world_p.add_argument("--name", help="World name (folder name or display name). "
+                         "With 'create', creates and joins the world directly (Minecraft 26.x mods)")
+    world_p.add_argument("--seed", help="World seed for 'create --name' (default: random)")
+    world_p.add_argument("--game-mode", dest="game_mode",
+                         choices=["survival", "creative", "adventure", "spectator"],
+                         help="Game mode for 'create --name' (default: creative)")
 
     # interact
     interact_p = sub.add_parser("interact", help="Player interactions (use items, place blocks, etc.)")
