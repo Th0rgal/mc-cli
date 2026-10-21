@@ -284,9 +284,15 @@ def cmd_compare(args):
 def cmd_teleport(args):
     """Teleport player."""
     try:
+        x = args.x_opt if args.x_opt is not None else args.x
+        y = args.y_opt if args.y_opt is not None else args.y
+        z = args.z_opt if args.z_opt is not None else args.z
+        if x is None or y is None or z is None:
+            output({"error": "x, y, z coordinates are required"}, args.json)
+            return 1
         host, port = get_connection(args)
         with Client(host, port) as mc:
-            data = mc.teleport(args.x, args.y, args.z)
+            data = mc.teleport(x, y, z)
             if args.json:
                 output(data, True)
             else:
@@ -1062,9 +1068,12 @@ def main():
 
     # teleport
     tp_p = sub.add_parser("teleport", help="Teleport player")
-    tp_p.add_argument("x", type=float)
-    tp_p.add_argument("y", type=float)
-    tp_p.add_argument("z", type=float)
+    tp_p.add_argument("x", type=float, nargs="?")
+    tp_p.add_argument("y", type=float, nargs="?")
+    tp_p.add_argument("z", type=float, nargs="?")
+    tp_p.add_argument("--x", dest="x_opt", type=float, help="Target X coordinate")
+    tp_p.add_argument("--y", dest="y_opt", type=float, help="Target Y coordinate")
+    tp_p.add_argument("--z", dest="z_opt", type=float, help="Target Z coordinate")
 
     # time
     time_p = sub.add_parser("time", help="Get or set world time")
@@ -1140,7 +1149,7 @@ def main():
     server_p = sub.add_parser("server", help="Server connection management")
     server_p.add_argument("action", choices=["connect", "disconnect", "status", "connection_error"])
     server_p.add_argument("address", nargs="?", help="Server address (for 'connect')")
-    server_p.add_argument("--server-port", type=int, default=25565, help="Server port (default: 25565)")
+    server_p.add_argument("--server-port", "--port", dest="server_port", type=int, default=25565, help="Server port (default: 25565)")
     server_p.add_argument("--resourcepack", choices=["prompt", "accept", "reject"], default="prompt",
                           help="Resource pack policy: prompt (default), accept, or reject")
     server_p.add_argument("--clear", action="store_true", help="Clear error after showing (for 'connection_error')")
@@ -1187,7 +1196,11 @@ def main():
     interact_p.add_argument("--to-slot", type=int, dest="to_slot", help="Destination slot for swap")
     interact_p.add_argument("hotbar_slot", type=int, nargs="?", help="Hotbar slot (0-8) for select action")
 
-    args = parser.parse_args()
+    raw_argv = sys.argv[1:]
+    has_trailing_json = "--json" in raw_argv
+    if has_trailing_json:
+        raw_argv = ["--json"] + [a for a in raw_argv if a != "--json"]
+    args = parser.parse_args(raw_argv)
 
     if not args.command:
         parser.print_help()
